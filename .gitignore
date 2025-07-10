@@ -1,0 +1,13 @@
+
+# ─ Python ─
+__pycache__/
+*.py[cod]
+# ─ Jupyter ─
+*.ipynb_checkpoints
+# ─ Env / OS ─
+.venv/
+.DS_Store
+# ─ Large artefacts ─
+data/
+models/
+results/
