@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scatter Plot with Local Images</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.0.0"></script>
+
+    <style>
+        .chart-container {
+            padding: 100px; /* Adjust the padding as needed */
+        }
+
+        #myScatterChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        .custom-tooltip {
+            position: absolute;
+            display: none;
+            background-color: white;
+            border: 1px solid black;
+            padding: 5px;
+            pointer-events: none;
+            /* Adjust position to appear above and to the left */
+            left: calc(100% - 200px); /* Adjust 200px as needed */
+            top: calc(100% - 200px); /* Adjust 200px as needed */
+        }
+
+        .custom-tooltip img {
+            max-width: 400px;
+            max-height: 400px;
+        }
+
+        .alert-message, .hover-message {
+            text-align: center;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div style="width: 80%; margin: auto;">
+        <div id="alertMessage" class="alert-message"></div>
+        <div id="hoverMessage" class="hover-message"></div>
+        <h1> Interactive plot example </h1>
+        <br>
+
+        <div class="chart-container">
+            <canvas id="myScatterChart"></canvas>
+        </div>  
+        <div id="customTooltip" class="custom-tooltip"></div>
+
+    </div>
+    <script>
+        var ctx = document.getElementById('myScatterChart').getContext('2d');
+
+        var imagePaths = [];
+        for (var i = 0; i <= 58; i++) {
+            imagePaths.push('percula_ocellaris/sample_' + i + '.png');
+        }
+        var imagePaths_originals = [];
+        for (var i = 0; i <= 58; i++) {
+            imagePaths_originals.push('percula_ocellaris/originals/original_' + i + '.jpg');
+        }
+
+        var loadedImages = [];
+        var loadedImages_originals = [];
+        var loadCount = 0;
+        var tooltipLoadCount = 0
+
+        function preloadImages(paths, loadedImagesArray, callback) {
+            var loadCount = 0;
+            paths.forEach((path, index) => {
+                var img = new Image();
+                img.src = path;
+                img.onload = function() {
+                    loadedImagesArray[index] = img;
+                    loadCount++;
+                    if (loadCount === paths.length) {
+                        callback();
+                    }
+                };
+                img.onerror = function() {
+                    console.error('Failed to load image: ' + path);
+                    loadCount++;
+                    if (loadCount === paths.length) {
+                        callback();
+                    }
+                };
+            });
+        }
+
+        function preloadTooltipImages(paths, loadedImagesArray, callback) {
+            var tooltipLoadCount = 0
+            paths.forEach((path, index) => {
+                var img = new Image();
+                img.src = path;
+                img.onload = function() {
+                    loadedImagesArray[index] = img;
+                    tooltipLoadCount++;
+                    if (tooltipLoadCount === paths.length) {
+                        callback();
+                    }
+                };
+                img.onerror = function() {
+                    console.error('Failed to load tooltip image: ' + path);
+                };
+            });
+        }
+
+        function createChart() {
+            var scatterData = {
+                datasets: [{
+                    // label: "",
+                    data: [],
+                    pointRadius: 0 // Hide the default points
+                }]
+            };
+
+            var coordinates = [
+                [ 5.3798485,  6.4083395],
+                [ 5.875344 ,  5.3553863],
+                [ 5.09483  ,  6.420559 ],
+                [ 4.7443852,  6.3546395],
+                [ 9.381547 ,  6.0618916],
+                [ 5.7573953,  4.7989078],
+                [ 4.759457 ,  6.1754365],
+                [ 5.4058223,  4.788816 ],
+                [10.736049 ,  5.9818225],
+                [ 5.498554 ,  5.410114 ],
+                [ 9.764627 ,  5.852491 ],
+                [ 5.536703 ,  5.4318705],
+                [11.158659 ,  5.626317 ],
+                [10.957225 ,  5.555858 ],
+                [11.267062 ,  5.428122 ],
+                [ 9.794928 ,  6.0187917],
+                [10.550573 ,  5.387136 ],
+                [ 5.690855 ,  5.6091986],
+                [ 6.099133 ,  5.017327 ],
+                [ 5.4942102,  5.8388705],
+                [ 5.2304587,  6.3257318],
+                [10.384161 ,  5.6260395],
+                [ 5.9354415,  5.0917506],
+                [ 5.3411465,  6.239885 ],
+                [10.589072 ,  5.5074587],
+                [ 4.808712 ,  6.270524 ],
+                [10.18431  ,  5.947802 ],
+                [10.584323 ,  4.495365 ],
+                [ 5.8733835,  5.7830563],
+                [ 5.6620855,  4.8969793],
+                [ 5.6898813,  4.9517756],
+                [10.882011 ,  5.0370297],
+                [10.830157 ,  5.907663 ],
+                [10.753045 ,  5.1150565],
+                [11.433126 ,  4.7585926],
+                [10.628395 ,  4.732411 ],
+                [11.594677 ,  4.8768654],
+                [10.758911 ,  4.698699 ],
+                [ 6.9015956,  4.675949 ],
+                [ 6.018415 ,  4.776298 ],
+                [ 6.141302 ,  4.631958 ],
+                [ 6.7925005,  4.71779  ],
+                [11.527381 ,  4.95038  ],
+                [ 5.8948283,  4.716737 ],
+                [11.105829 ,  5.12851  ],
+                [ 6.656917 ,  4.638236 ],
+                [ 5.508438 ,  4.709273 ],
+                [ 5.2811203,  6.1491065],
+                [10.651237 ,  4.5358424],
+                [10.512408 ,  5.2826223],
+                [10.71968  ,  6.028765 ],
+                [ 9.488679 ,  5.8298554],
+                [ 9.4823265,  6.009481 ],
+                [ 9.973809 ,  4.9477725],
+                [10.8423195,  5.4704747],
+                [ 9.454255 ,  5.5784006],
+                [ 5.622661 ,  4.8574853],
+                [ 5.693578 ,  4.540644 ],
+                [10.719452 ,  5.7154827]
+            ];
+            var labels1 = ['Percula',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Ocellaris',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Percula',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Ocellaris',
+                'Percula',
+                'Percula',
+                'Ocellaris'];
+
+            coordinates.forEach(function(coord, index) {
+                scatterData.datasets[0].data.push({
+                    x: coord[0],
+                    y: coord[1],
+                    label1: labels1[index]
+                });
+            });
+
+            var scatterOptions = {
+                scales: {
+                    x: {
+                        position: 'bottom'
+                        // display: false // Remove x-axis
+                    },
+                    y: {
+                        // display: false // Remove x-axis
+                    }
+                },
+                plugins: {
+                    zoom: {
+                        pan: {
+                            enabled: true,
+                            mode: 'xy'
+                        },
+                        zoom: {
+                            enabled: true,
+                            mode: 'xy'
+                        }
+                    },
+                    tooltip: {
+                        enabled: false // Disable default tooltip
+                    },
+                    legend: {
+                        display: false // Remove legend
+                    },
+                },
+                interaction: {
+                    mode: 'nearest', // Highlight data points when hovering over them
+                    intersect: false
+                }     
+            };
+
+            // Custom plugin to draw images
+            var drawImagesPlugin = {
+                id: 'drawImages',
+                beforeDraw: function(chart) {
+                    var ctx = chart.ctx;
+                    chart.data.datasets.forEach(function(dataset) {
+                        dataset.data.forEach(function(point, index) {
+                            var x = chart.scales.x.getPixelForValue(point.x);
+                            var y = chart.scales.y.getPixelForValue(point.y);
+                            var img = loadedImages[index];
+                            var scale = 12
+                            var width = img.width/scale
+                            var height = img.height/scale
+                            if (img) {
+                                console.log('Drawing image at:', x, y);
+                                console.log('Image dimensions:', img.width, img.height);
+                                ctx.drawImage(img, x - width / 2, y - height / 2, width,height);
+                            } else {
+                                console.error('Image not found for point index:', index);
+                            }
+                        });
+                    });
+                }
+            };
+
+            // Register the plugin with Chart.js
+            Chart.register(drawImagesPlugin);
+
+            // Create a new Chart object
+            var myScatterChart = new Chart(ctx, {
+                type: 'scatter',
+                data: scatterData,
+                options: scatterOptions,
+                plugins: [drawImagesPlugin]
+            });
+
+            // Custom tooltip
+            var customTooltip = document.getElementById('customTooltip');
+            var alertMessage = document.getElementById('alertMessage');
+            var hoverMessage = document.getElementById('hoverMessage');
+
+            ctx.canvas.addEventListener('mousemove', function(event) {
+                var points = myScatterChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+                if (points.length) {
+                    var point = points[0];
+                    var img = loadedImages_originals[point.index];
+                    var dataPoint = scatterData.datasets[0].data[point.index];
+                    if (img && dataPoint) {
+                        customTooltip.innerHTML = '<div><strong> Fish num ' + point.index + '  is labeled ' + dataPoint.label1 + '<br></strong><img src="' + img.src + '" alt="Zoomed Image"></div>';
+                        customTooltip.style.left = (event.clientX - customTooltip.offsetHeight - 10) + 'px';
+                        customTooltip.style.top = (event.clientY - customTooltip.offsetHeight - 10) + 'px';
+                        customTooltip.style.display = 'block';
+                        // hoverMessage.innerText = 'Hovering over: ' + dataPoint.label1 + ' - ' + dataPoint.label2;
+                    }
+                    } else {
+                        customTooltip.style.display = 'none';
+                        hoverMessage.innerText = '';
+                    }
+            });
+        }
+
+        preloadImages(imagePaths, loadedImages, function() {
+            preloadTooltipImages(imagePaths_originals, loadedImages_originals, createChart);
+        });
+    </script>
+</body>
+</html>
