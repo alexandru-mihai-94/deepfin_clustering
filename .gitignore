@@ -11,3 +11,4 @@ __pycache__/
 data/
 models/
 results/
+venv_test*/
