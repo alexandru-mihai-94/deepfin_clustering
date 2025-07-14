@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+src/deepfin/__init__.py
+src/deepfin/clustering.py
+src/deepfin/feature_extract.py
+src/deepfin/pipeline.py
+src/deepfin/preprocessing.py
+src/deepfin/viz.py
+src/deepfin.egg-info/PKG-INFO
+src/deepfin.egg-info/SOURCES.txt
+src/deepfin.egg-info/dependency_links.txt
+src/deepfin.egg-info/top_level.txt
+tests/test_pipeline.py

@@ -1,13 +1,10 @@
 from deepfin.pipeline import run_demo
 import pathlib, tempfile, shutil
 
-def test_demo_placeholder():
+def test_demo_runs():
     tmp = pathlib.Path(tempfile.mkdtemp())
     try:
-        # until helpers are implemented we expect a NotImplementedError
-        try:
-            run_demo("sample_images/", out_dir=tmp)
-        except NotImplementedError:
-            assert True
+        run_demo("sample_images/", out_dir=tmp)
+        assert (tmp / "umap_demo.png").exists()
     finally:
         shutil.rmtree(tmp)
