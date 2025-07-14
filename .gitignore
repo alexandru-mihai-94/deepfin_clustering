@@ -10,7 +10,6 @@ __pycache__/
 # ─ Large artefacts ─
 data/
 models/
-results/
 venv_test*/
 venv*/
 .env*/
