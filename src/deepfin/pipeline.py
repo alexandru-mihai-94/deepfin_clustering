@@ -33,3 +33,16 @@ def run_demo(img_dir: str | Path, out_dir: str | Path = "results"):
                             title = "Acipenseridae vs Tinca Tinca")
 
     print(" Demo finished ", out_dir/"umap_demo.png")
+
+if __name__ == "__main__":
+    import sys
+
+    args = sys.argv[1:]  # e.g. ["run_demo", "sample_images"]
+
+    if len(args) >= 2 and args[0] == "run_demo":
+        run_demo(args[1], args[2] if len(args) > 2 else "results")
+    elif len(args) >= 1:
+        run_demo(args[0], args[1] if len(args) > 1 else "results")
+    else:
+        print("Usage: python -m deepfin.pipeline run_demo <img_dir> [out_dir]")
+        sys.exit(1)
