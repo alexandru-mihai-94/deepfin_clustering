@@ -26,7 +26,7 @@ def run_demo(img_dir: str | Path, out_dir: str | Path = "results"):
         labels.append(labels_t)
         xy.append(xy_t)
 
-    plot_umap_thumbnails(xy[1], labels[1], out_dir/"umap_demo_thumbnails.png", 
+    plot_umap_thumbnails(xy[1], labels[1], out_dir/"umap_demo.png", 
                             images=thumbs, 
                             max_thumbnails=60, 
                             thumb_zoom=0.1,
