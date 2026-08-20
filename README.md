@@ -19,6 +19,32 @@ The approach is data-source agnostic and was validated on both novel anemone fis
 [Live interactive scatter plot](https://alexandru-mihai-94.github.io/deepfin_clustering/scatter_test.html)
 ---
 
+## Citation
+
+If you use DeepFin in your research, please cite:
+
+> Mihai, A., Moore, B., Klann, M., Laudet, V., & Ravasi, T. (2026).
+> DEEPFIN: A Deep Learning Tool for Fish Image Classification from Unlabeled Data.
+> *iScience*, 29, 117234. https://doi.org/10.1016/j.isci.2026.117234
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{mihai2026deepfin,
+  title   = {DEEPFIN: A Deep Learning Tool for Fish Image Classification from Unlabeled Data},
+  author  = {Mihai, Alexandru and Moore, Billy and Klann, Marleen and Laudet, Vincent and Ravasi, Timothy},
+  journal = {iScience},
+  volume  = {29},
+  number  = {9},
+  pages   = {117234},
+  year    = {2026},
+  doi     = {10.1016/j.isci.2026.117234},
+  url     = {https://doi.org/10.1016/j.isci.2026.117234}
+}
+```
+</details>
+
 ## Quick start
 
 ```bash
