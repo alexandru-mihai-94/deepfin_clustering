@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the article below."
+title: "deepfin_clustering"
+authors:
+  - family-names: Mihai
+    given-names: Alexandru
+preferred-citation:
+  type: article
+  title: "DEEPFIN: A Deep Learning Tool for Fish Image Classification from Unlabeled Data"
+  authors:
+    - {family-names: Mihai, given-names: Alexandru}
+    - {family-names: Moore, given-names: Billy}
+    - {family-names: Klann, given-names: Marleen}
+    - {family-names: Laudet, given-names: Vincent}
+    - {family-names: Ravasi, given-names: Timothy}
+  journal: "iScience"
+  volume: 29
+  year: 2026
+  doi: "10.1016/j.isci.2026.117234"
