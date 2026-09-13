@@ -36,6 +36,7 @@
   }
 
   *, *::before, *::after { box-sizing:border-box; }
+  [hidden] { display:none !important; }
   body {
     background:var(--bg); color:var(--ink);
     font-family:var(--serif); font-size:16px; line-height:1.55;
@@ -223,7 +224,7 @@
   .m-name { display:flex; align-items:center; gap:9px; }
   .m-name .swatch { width:20px; }
   .bar-cell { width:92px; }
-  .bar { height:8px; background:var(--well-2); position:relative; min-width:56px; }
+  .bar { display:block; height:8px; background:var(--well-2); position:relative; min-width:56px; }
   .bar i { position:absolute; inset:0 auto 0 0; background:var(--c); border-radius:0 3px 3px 0; }
   .headline { padding:14px 16px 0; font-size:0.95rem; color:var(--ink-2); }
   .headline b { color:var(--ink); font-weight:500; }
@@ -250,6 +251,38 @@
   .chart .grid { stroke:var(--rule); stroke-width:1; }
   .chart .axis { stroke:var(--rule-2); stroke-width:1; }
   .chart .stepband { fill:var(--well-2); }
+  /* segmented control */
+  .seg { display:flex; border:1px solid var(--rule-2); border-radius:2px; overflow:hidden; width:max-content; }
+  .seg button {
+    font-family:var(--ui); font-size:0.79rem; font-weight:500; padding:6px 13px;
+    background:transparent; border:0; border-right:1px solid var(--rule-2); color:var(--ink-3);
+  }
+  .seg button:last-child { border-right:0; }
+  .seg button:hover { color:var(--ink); background:var(--well); }
+  .seg button[aria-pressed="true"] { background:var(--ink); color:var(--card); }
+
+  /* custom-function form */
+  .custom { display:flex; flex-wrap:wrap; align-items:flex-end; gap:10px 14px; margin-top:12px; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field.grow { flex:1 1 210px; min-width:170px; }
+  .field label { font-family:var(--ui); font-size:0.72rem; font-weight:600; letter-spacing:.02em; color:var(--ink-2); }
+  .field input {
+    font-family:var(--mono); font-size:0.85rem; padding:7px 9px; width:100%;
+    background:var(--card); color:var(--ink); border:1px solid var(--rule-2); border-radius:2px;
+  }
+  .field.num input { width:78px; }
+  .field input:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+  .custom.bad input#fnInput { border-color:var(--s1); }
+  .err-msg { flex:1 1 100%; font-size:0.83rem; color:var(--s1); font-family:var(--ui); }
+  .err-msg:empty { display:none; }
+  .hint { flex:1 1 100%; font-size:0.8rem; color:var(--ink-3); }
+  .hint code { font-family:var(--mono); font-size:0.92em; color:var(--ink-2); }
+
+  /* step-size strip under the march plot */
+  .strip-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:9px 16px 5px; }
+  .strip-head .lbl { margin:0; }
+  .strip-head span.note { font-size:0.79rem; }
+
   @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 
@@ -273,6 +306,22 @@
       <p class="lbl" id="pickLbl">Test problem</p>
       <div class="chips" role="group" aria-labelledby="pickLbl" id="problemChips"></div>
       <p class="note" id="problemBlurb" style="margin-top:12px"></p>
+      <div class="custom" id="customForm" hidden>
+        <div class="field grow">
+          <label for="fnInput"><var>y</var>&prime; = f(<var>t</var>, <var>y</var>)</label>
+          <input id="fnInput" type="text" value="t - y^2" spellcheck="false" autocapitalize="off" autocomplete="off">
+        </div>
+        <div class="field num"><label for="y0Input"><var>y</var>(<var>t</var>&#8320;)</label>
+          <input id="y0Input" type="number" value="0" step="any"></div>
+        <div class="field num"><label for="t0Input"><var>t</var> from</label>
+          <input id="t0Input" type="number" value="0" step="any"></div>
+        <div class="field num"><label for="t1Input">to</label>
+          <input id="t1Input" type="number" value="5" step="any"></div>
+        <p class="err-msg" id="fnErr" role="status"></p>
+        <p class="hint">Write it the way you would say it: <code>2t - y</code>, <code>y*cos(t)</code>,
+          <code>sin(t^2) - 0.5y</code>. Available: <code>t</code>, <code>y</code>, <code>+ - * / ^</code>,
+          <code>sin cos tan exp log sqrt abs</code> and their friends, <code>pi</code>, <code>e</code>.</p>
+      </div>
     </div>
     <div class="eqn">
       <p class="lbl">The problem</p>
@@ -282,7 +331,14 @@
   </section>
 
   <div class="controls" style="margin-top:22px">
-    <div class="ctl grow">
+    <div class="ctl">
+      <span class="lbl" id="modeLbl">Stepping</span>
+      <div class="seg" role="group" aria-labelledby="modeLbl" id="modeSeg">
+        <button type="button" data-mode="fixed" aria-pressed="true">Fixed <var>h</var></button>
+        <button type="button" data-mode="adaptive" aria-pressed="false">Adaptive</button>
+      </div>
+    </div>
+    <div class="ctl grow" id="fixedCtl">
       <div class="row">
         <label class="lbl" for="stepsRange">Step size</label>
         <span class="readout" id="stepsReadout"></span>
@@ -290,7 +346,14 @@
       <input id="stepsRange" type="range" min="0" max="100" value="28" step="1"
              aria-describedby="stepsReadout">
     </div>
-    <div class="ctl">
+    <div class="ctl grow" id="tolCtl" hidden>
+      <div class="row">
+        <label class="lbl" for="tolRange">Error tolerance per step</label>
+        <span class="readout" id="tolReadout"></span>
+      </div>
+      <input id="tolRange" type="range" min="2" max="9" value="5" step="1" aria-describedby="tolReadout">
+    </div>
+    <div class="ctl" id="workCtl">
       <span class="lbl">Basis of comparison</span>
       <label class="switch" for="equalWork">
         <input type="checkbox" id="equalWork">
@@ -313,6 +376,15 @@
       <div class="plot-well" id="mainWell">
         <svg id="mainPlot" class="chart" role="img" aria-label="Computed solutions plotted against the exact solution"></svg>
         <div class="tip" id="mainTip"></div>
+      </div>
+      <div id="stripBox" hidden>
+        <div class="strip-head">
+          <p class="lbl">Step size the controller chose</p>
+          <span class="note">log scale &middot; same <var>t</var> axis</span>
+        </div>
+        <div class="plot-well" id="hWell">
+          <svg id="hPlot" class="chart" role="img" aria-label="Step size against t for each method"></svg>
+        </div>
       </div>
       <div class="legend" id="legend" role="group" aria-label="Show or hide each method"></div>
       <figcaption id="mainCap"></figcaption>
@@ -361,17 +433,7 @@
       <p class="headline" id="ratioLine"></p>
       <div class="tbl-scroll">
         <table class="err" id="errTable">
-          <thead>
-            <tr>
-              <th scope="col">Method</th>
-              <th scope="col">Order <var>p</var></th>
-              <th scope="col"><var>f</var>/step</th>
-              <th scope="col">Steps &times; <var>h</var></th>
-              <th scope="col">Error at <var>T</var></th>
-              <th scope="col" class="bar-cell">log scale</th>
-              <th scope="col">Measured <var>p</var></th>
-            </tr>
-          </thead>
+          <thead id="errHead"></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -418,6 +480,21 @@
       the noise in the arithmetic, smaller steps only add more roundoff.</p>
     </div>
     <div>
+      <h3>How the step size is chosen</h3>
+      <p>Adaptive mode takes each step twice &mdash; once at <var>h</var>, once as two halves &mdash; and reads the
+      local error off the difference. Too big, and the step is rejected and retried smaller; comfortably small, and the
+      next step stretches. Real solvers (RKF45, Dormand&ndash;Prince) get the same estimate from an embedded pair for
+      almost nothing; step doubling is the version that works for any tableau, and it costs about three steps&rsquo;
+      work per attempt.</p>
+    </div>
+    <div>
+      <h3>Where &ldquo;exact&rdquo; comes from</h3>
+      <p>The five built-in problems have closed-form solutions, so the error columns are exact. Type your own
+      right-hand side and there is usually no formula to compare against &mdash; so the page integrates a reference
+      solution with RK4 on 4000 steps and measures against that. It is good to roughly 10<sup>&minus;12</sup>;
+      below that you are reading the reference&rsquo;s own error.</p>
+    </div>
+    <div>
       <h3>Accuracy is not stability</h3>
       <p>On <var>y</var>&prime;&nbsp;=&nbsp;&minus;6<var>y</var>, Euler needs
       <var>h</var>&nbsp;&lt;&nbsp;2/6 just to stay bounded &mdash; past that its answer oscillates and grows while
@@ -450,6 +527,14 @@ const PROBLEMS = [
     ode:'<var>y</var>&prime; = <var>y</var> &minus; <var>t</var><sup>2</sup> + 1,&ensp;<var>y</var>(0) = 0.5,&ensp;0 &le; <var>t</var> &le; 2',
     sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = (<var>t</var>+1)<sup>2</sup> &minus; &frac12;<var>e</var><sup><var>t</var></sup>',
     blurb:'The worked example every numerical-analysis course runs first. Smooth, mildly growing, no traps — so the error columns show nothing but the order of each method. y(2) = 5.305471950…'
+  },
+  {
+    id:'ramp', label:'Ramp forcing', t0:0, T:6, y0:1,
+    f:(t,y)=> 2*t - y,
+    flow:(t0,y0,t)=> 2*t - 2 + (y0 - 2*t0 + 2)*Math.exp(t0-t),
+    ode:'<var>y</var>&prime; = 2<var>t</var> &minus; <var>y</var>,&ensp;<var>y</var>(0) = 1,&ensp;0 &le; <var>t</var> &le; 6',
+    sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = 2<var>t</var> &minus; 2 + 3<var>e</var><sup>&minus;<var>t</var></sup>',
+    blurb:'Linear, solved by an integrating factor. The transient 3e^-t dies inside the first couple of units and the solution settles onto the straight line 2t - 2 — where y\u2033 = 0 and every method is very nearly exact. That is precisely when an adaptive stepper should stop taking small steps.'
   },
   {
     id:'modulated', label:'Modulated growth', t0:0, T:12, y0:1,
@@ -528,15 +613,57 @@ function integrate(p, m, N) {
   let t=p.t0, y=p.y0, diverged=false;
   for (let n=0; n<N; n++) {
     const s = rkStep(p.f, t, y, h, m);
-    steps.push({n, t, y, h, k:s.k, pts:s.pts, slope:s.slope, yNext:s.yNext});
+    steps.push({n, t, y, h, yNext:s.yNext});
     y = s.yNext; t = p.t0 + (n+1)*h;
     if (!isFinite(y) || Math.abs(y) > BLOWUP) { diverged = true; break; }
     ts.push(t); ys.push(y);
   }
   const yEnd = ys[ys.length-1];
   const err = diverged ? Infinity : Math.abs(yEnd - p.flow(p.t0,p.y0,p.T));
-  return {m, N, h, ts, ys, steps, diverged, yEnd, err, evals:N*evalsPerStep(m)};
+  return {m, N, h, ts, ys, steps, diverged, yEnd, err, evals:N*evalsPerStep(m),
+          adaptive:false, rejected:0, capped:false, hMin:h, hMax:h};
 }
+
+/* Adaptive stepping by step doubling: take the step once at h and again as two
+   halves, and read the local error off the difference (Richardson). It works
+   for any tableau, which is why it is the right tool here — a real solver would
+   get the same estimate from an embedded pair for almost no extra work. The
+   step that is kept is the plain single step, so what the inspector draws is
+   exactly what the solver did. */
+const MAX_STEPS = 60000;
+function integrateAdaptive(p, m, tol) {
+  const ev = evalsPerStep(m), denom = Math.pow(2, m.order) - 1, span = p.T - p.t0;
+  const ts=[p.t0], ys=[p.y0], steps=[];
+  let t=p.t0, y=p.y0, h=span/200, evals=0, rejected=0, diverged=false, capped=false;
+  const hFloor = span*1e-10;
+  let hMin=Infinity, hMax=0;
+  while (t < p.T - span*1e-12) {
+    if (steps.length >= MAX_STEPS) { capped = true; break; }
+    h = Math.min(h, p.T - t);
+    const big = rkStep(p.f, t, y, h, m);
+    const a   = rkStep(p.f, t, y, h/2, m);
+    const b   = rkStep(p.f, t + h/2, a.yNext, h/2, m);
+    evals += 3*ev - 1;                       /* k1 is shared by the first two */
+    if (!isFinite(big.yNext) || !isFinite(b.yNext)) { diverged = true; break; }
+    const est = Math.abs(b.yNext - big.yNext)/denom;
+    const ratio = est/(tol*(1 + Math.abs(y)));
+    if (ratio <= 1 || h <= hFloor) {
+      steps.push({n:steps.length, t, y, h, yNext:big.yNext, est, halves:b.yNext});
+      hMin = Math.min(hMin,h); hMax = Math.max(hMax,h);
+      t += h; y = big.yNext; ts.push(t); ys.push(y);
+      if (!isFinite(y) || Math.abs(y) > BLOWUP) { diverged = true; break; }
+    } else rejected++;
+    const fac = ratio > 0 ? 0.9*Math.pow(1/ratio, 1/(m.order+1)) : 5;
+    h = Math.max(hFloor, h*Math.min(5, Math.max(0.15, fac)));
+  }
+  const yEnd = ys[ys.length-1];
+  const err = (diverged || capped) ? Infinity : Math.abs(yEnd - p.flow(p.t0,p.y0,p.T));
+  return {m, N:steps.length, h:hMax, ts, ys, steps, diverged, capped, yEnd, err, evals,
+          adaptive:true, rejected, tol, hMin:isFinite(hMin)?hMin:0, hMax};
+}
+
+/* Stage detail for one step, recomputed rather than stored. */
+const stepDetail = (p, m, st) => rkStep(p.f, st.t, st.y, st.h, m);
 
 const globalErr = (p,m,N) => integrate(p,m,N).err;
 
@@ -578,6 +705,155 @@ function fmtWeight(x) {
   if (Math.abs(x-1/6) < 1e-12) return '⅙';
   if (Math.abs(x-2/3) < 1e-12) return '⅔';
   return x.toFixed(3);
+}
+
+/* ===========================================================================
+   4b. Arbitrary right-hand sides
+
+   A small recursive-descent parser, rather than new Function(), so the page
+   never needs eval and can say something useful when the input is wrong.
+   Juxtaposition multiplies, so "2t - y" means what it looks like.
+   =========================================================================== */
+const FN1 = {sin:Math.sin, cos:Math.cos, tan:Math.tan, asin:Math.asin, acos:Math.acos,
+  atan:Math.atan, sinh:Math.sinh, cosh:Math.cosh, tanh:Math.tanh, exp:Math.exp,
+  log:Math.log, ln:Math.log, log10:Math.log10, sqrt:Math.sqrt, abs:Math.abs,
+  sign:Math.sign, floor:Math.floor, ceil:Math.ceil, round:Math.round};
+const CONSTS = {pi:Math.PI, e:Math.E};
+
+function tokenize(src) {
+  const out = []; let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (/[0-9.]/.test(c)) {
+      let j = i; while (j < src.length && /[0-9.]/.test(src[j])) j++;
+      if (src[j] === 'e' || src[j] === 'E') {
+        let k = j+1;
+        if (src[k] === '+' || src[k] === '-') k++;
+        if (/[0-9]/.test(src[k] || '')) { while (k < src.length && /[0-9]/.test(src[k])) k++; j = k; }
+      }
+      const v = parseFloat(src.slice(i,j));
+      if (!isFinite(v)) throw new Error('“' + src.slice(i,j) + '” is not a number');
+      out.push({t:'num', v}); i = j; continue;
+    }
+    if (/[a-zA-Z_]/.test(c)) {
+      let j = i; while (j < src.length && /[a-zA-Z_0-9]/.test(src[j])) j++;
+      out.push({t:'name', v:src.slice(i,j)}); i = j; continue;
+    }
+    if ('+-*/^()'.includes(c)) { out.push({t:c}); i++; continue; }
+    throw new Error('“' + c + '” is not something this can read');
+  }
+  return out;
+}
+
+function parseExpr(raw) {
+  const src = String(raw).replace(/^\s*(dy\s*\/\s*dt|y\s*['’′])\s*=\s*/i, '').trim();
+  if (!src) throw new Error('type an expression in t and y');
+  const toks = tokenize(src);
+  let i = 0;
+  const eat = t => (toks[i] && toks[i].t === t) ? (i++, true) : false;
+  const startsPrimary = () => toks[i] && (toks[i].t === 'num' || toks[i].t === 'name' || toks[i].t === '(');
+  function primary() {
+    const tk = toks[i];
+    if (!tk) throw new Error('the expression stops early — something is missing at the end');
+    if (tk.t === 'num') { i++; const v = tk.v; return () => v; }
+    if (tk.t === 'name') {
+      i++; const nm = tk.v.toLowerCase();
+      if (FN1[nm]) {
+        if (!eat('(')) throw new Error('“' + nm + '” needs brackets, as in ' + nm + '(t)');
+        const a = expr();
+        if (!eat(')')) throw new Error('missing “)” after ' + nm + '(');
+        const g = FN1[nm];
+        return (t,y) => g(a(t,y));
+      }
+      if (nm === 't') return t => t;
+      if (nm === 'y') return (t,y) => y;
+      if (nm in CONSTS) { const v = CONSTS[nm]; return () => v; }
+      throw new Error('“' + tk.v + '” is not a name this knows — use t, y, pi, e, or a function like sin( )');
+    }
+    if (tk.t === '(') { i++; const a = expr(); if (!eat(')')) throw new Error('missing “)”'); return a; }
+    throw new Error('“' + tk.t + '” cannot start a term');
+  }
+  function power() {
+    const base = primary();
+    if (eat('^')) { const ex = unary(); return (t,y) => Math.pow(base(t,y), ex(t,y)); }
+    return base;
+  }
+  function unary() {
+    if (eat('-')) { const a = unary(); return (t,y) => -a(t,y); }
+    if (eat('+')) return unary();
+    return power();
+  }
+  function term() {
+    let a = unary();
+    for (;;) {
+      let b = null, op = '*';
+      if (eat('*')) b = unary();
+      else if (eat('/')) { b = unary(); op = '/'; }
+      else if (startsPrimary()) b = unary();
+      else return a;
+      const l = a, r = b;
+      a = op === '*' ? (t,y) => l(t,y)*r(t,y) : (t,y) => l(t,y)/r(t,y);
+    }
+  }
+  function expr() {
+    let a = term();
+    for (;;) {
+      if (eat('+')) { const b = term(), l = a; a = (t,y) => l(t,y)+b(t,y); }
+      else if (eat('-')) { const b = term(), l = a; a = (t,y) => l(t,y)-b(t,y); }
+      else return a;
+    }
+  }
+  const fn = expr();
+  if (i < toks.length) throw new Error('“' + (toks[i].v ?? toks[i].t) + '” is left over at the end');
+  const probes = [[0.37,0.61],[1.5,2.0],[0,1]].map(([a,b]) => fn(a,b));
+  if (!probes.some(v => typeof v === 'number' && isFinite(v)))
+    throw new Error('that expression never produces a number — check the brackets');
+  return {fn, src};
+}
+
+/* With no closed form to compare against, the truth becomes a reference
+   solution: RK4 on a very fine grid, tabulated once. */
+const RK4_REF = 4000;
+function rk4Sub(f, t, y, h) {
+  const k1 = f(t,y), k2 = f(t+h/2, y+h*k1/2), k3 = f(t+h/2, y+h*k2/2), k4 = f(t+h, y+h*k3);
+  return y + h*(k1 + 2*k2 + 2*k3 + k4)/6;
+}
+function march(f, t, y, tEnd, n) {
+  const h = (tEnd - t)/n;
+  for (let i=0; i<n; i++) { y = rk4Sub(f, t+i*h, y, h); if (!isFinite(y)) return NaN; }
+  return y;
+}
+function makeCustom(srcRaw, y0, t0, T) {
+  if (!isFinite(y0) || !isFinite(t0) || !isFinite(T)) throw new Error('y(t₀), t₀ and T all need numbers');
+  if (!(T > t0)) throw new Error('the interval must run forwards: T has to be greater than t₀');
+  const {fn, src} = parseExpr(srcRaw);
+  const dt = (T-t0)/RK4_REF, tab = new Float64Array(RK4_REF+1);
+  tab[0] = y0;
+  let y = y0;
+  for (let i=0; i<RK4_REF; i++) {
+    y = rk4Sub(fn, t0+i*dt, y, dt); tab[i+1] = y;
+    if (!isFinite(y) || Math.abs(y) > BLOWUP)
+      throw new Error('the solution runs away to infinity around t = ' + sig(t0+(i+1)*dt,4) +
+                      ' — try a shorter interval or a different y(t₀)');
+  }
+  const flow = (a, b, t) => {
+    if (a === t0 && b === y0) {
+      const idx = Math.max(0, Math.min(RK4_REF, Math.round((t-t0)/dt)));
+      const tn = t0 + idx*dt;
+      return tn === t ? tab[idx] : march(fn, tn, tab[idx], t, 8);
+    }
+    return march(fn, a, b, t, 48);
+  };
+  return {
+    id:'custom', label:'Your own', custom:true, src, t0, T, y0, f:fn, flow,
+    ode:'<var>y</var>&prime; = ' + svgEsc(src) + ',&ensp;<var>y</var>(' + sig(t0,4) + ') = ' + sig(y0,4) +
+        ',&ensp;' + sig(t0,4) + ' &le; <var>t</var> &le; ' + sig(T,4),
+    sol:'Reference: &ensp;RK4 on ' + RK4_REF + ' steps, refined locally',
+    blurb:'Your own right-hand side. There is no closed form to check against, so “exact” here means a ' +
+          'reference solution integrated at ' + RK4_REF + ' steps — accurate to roughly 10⁻¹², ' +
+          'which is the floor every error on this page is measured against.'
+  };
 }
 
 /* ===========================================================================
@@ -639,29 +915,49 @@ function tickFmt(v, step) {
   return Math.abs(v)>=1e5 || (v!==0 && Math.abs(v)<1e-4) ? sciText(v) : Number(v.toFixed(Math.min(6,d))).toString();
 }
 
+
 /* ===========================================================================
    6. State
    =========================================================================== */
 const state = {
-  pid:'logistic', slider:28, equalWork:false,
+  pid:'logistic', slider:28, tol:5, mode:'fixed', equalWork:false,
   visible:new Set(['euler','midpoint','heun','rk4']),
-  inspect:'euler', step:3, playing:false
+  inspect:'euler', step:3, playing:false,
+  custom:{src:'t - y^2', y0:0, t0:0, T:5}
 };
 const $ = id => document.getElementById(id);
 const CONV_NS = [4,8,16,32,64,128,256,512,1024,2048,4096];
+const TOLS = [1e-2,1e-3,1e-4,1e-5,1e-6,1e-7,1e-8,1e-9];
 
 let P, runs = {}, view = {}, mainGeom = null, convGeom = null;
+let customP = null, customMsg = '';
+const sweeps = {};
 
 const sliderToN = v => Math.max(4, Math.round(4*Math.pow(50, v/100)));
 const baseN = () => sliderToN(state.slider);
-const stepsFor = m => state.equalWork
-  ? Math.max(2, Math.round(baseN()/evalsPerStep(m)))
-  : baseN();
+const tolValue = () => Math.pow(10, -state.tol);
+const isAdaptive = () => state.mode === 'adaptive';
+const stepsFor = m => (state.equalWork ? Math.max(2, Math.round(baseN()/evalsPerStep(m))) : baseN());
+const problemKey = () => state.pid === 'custom' && customP
+  ? 'custom|' + customP.src + '|' + customP.y0 + '|' + customP.t0 + '|' + customP.T
+  : state.pid;
+
+function rebuildCustom() {
+  const c = state.custom;
+  try { customP = makeCustom(c.src, Number(c.y0), Number(c.t0), Number(c.T)); customMsg = ''; return true; }
+  catch (e) { customMsg = e.message; return false; }
+}
+function currentProblem() {
+  if (state.pid !== 'custom') return PROBLEMS.find(p => p.id === state.pid);
+  if (!customP) rebuildCustom();
+  return customP || PROBLEMS[0];
+}
 
 function viewDomain() {
   const n = 480, xs = [], ys = [];
   for (let i=0;i<=n;i++) { const t = P.t0 + (P.T-P.t0)*i/n; xs.push(t); ys.push(P.flow(P.t0,P.y0,t)); }
-  const eLo = Math.min(...ys), eHi = Math.max(...ys), span = (eHi-eLo)||1;
+  const clean = ys.filter(isFinite);
+  const eLo = Math.min(...clean), eHi = Math.max(...clean), span = (eHi-eLo)||1;
   const cap = 1.7*span;
   let lo = eLo - 0.10*span, hi = eHi + 0.14*span;
   const off = new Set();
@@ -679,21 +975,32 @@ function viewDomain() {
 }
 
 function recompute() {
-  P = PROBLEMS.find(p=>p.id===state.pid);
+  P = currentProblem();
   runs = {};
-  for (const m of METHODS) runs[m.id] = integrate(P, m, stepsFor(m));
+  for (const m of METHODS)
+    runs[m.id] = isAdaptive() ? integrateAdaptive(P, m, tolValue()) : integrate(P, m, stepsFor(m));
   view = viewDomain();
-  const r = runs[state.inspect];
-  state.step = Math.max(0, Math.min(state.step, r.steps.length-1));
+  state.step = Math.max(0, Math.min(state.step, runs[state.inspect].steps.length-1));
+}
+
+/* An adaptive run can hold tens of thousands of points; the polyline only
+   needs enough of them to look like itself. */
+function thin(arr, max) {
+  if (arr.length <= max) return arr;
+  const out = [], k = (arr.length-1)/(max-1);
+  for (let i=0;i<max;i++) out.push(arr[Math.round(i*k)]);
+  return out;
 }
 
 /* ===========================================================================
    7. The march plot
    =========================================================================== */
+const MAIN_PAD = {l:52, r:74, t:26, b:42};
+
 function drawMain() {
   const well = $('mainWell'), W = Math.max(300, well.clientWidth);
   const H = Math.round(Math.max(290, Math.min(440, W*0.60)));
-  const pad = {l:52, r:74, t:26, b:42};
+  const pad = MAIN_PAD;
   const [t0,t1] = view.tD, [y0,y1] = view.yD;
   const X = t => pad.l + (t-t0)/(t1-t0)*(W-pad.l-pad.r);
   const Y = v => H-pad.b - (v-y0)/(y1-y0)*(H-pad.t-pad.b);
@@ -701,7 +1008,6 @@ function drawMain() {
   const xstep = xt.length>1 ? xt[1]-xt[0] : 1, ystep = yt.length>1 ? yt[1]-yt[0] : 1;
   let s = '';
 
-  /* the step under the glass, as a band behind everything */
   const ins = runs[state.inspect], st = ins.steps[Math.min(state.step, ins.steps.length-1)];
   if (st) {
     const bx = X(st.t), bw = Math.max(1.5, X(st.t+st.h)-X(st.t));
@@ -721,8 +1027,6 @@ function drawMain() {
 
   s += '<clipPath id="mclip"><rect x="'+pad.l+'" y="'+(pad.t-2)+'" width="'+(W-pad.l-pad.r)+
        '" height="'+(H-pad.t-pad.b+4)+'"/></clipPath><g clip-path="url(#mclip)">';
-
-  /* exact solution — ink, the reference every line is judged against */
   s += path(view.exact.ts.map((t,i)=>[X(t),Y(view.exact.ys[i])]),
             'stroke:var(--exact);stroke-width:2.25;stroke-linejoin:round');
 
@@ -730,24 +1034,22 @@ function drawMain() {
   for (const m of METHODS) {
     if (!state.visible.has(m.id)) continue;
     const r = runs[m.id], col = 'var('+m.cvar+')';
-    const pts = r.ts.map((t,i)=>[X(t),Y(r.ys[i])]);
+    const pts = thin(r.ts.map((t,i)=>[X(t),Y(r.ys[i])]), 2400);
     if (pts.length>1) s += path(pts, 'stroke:'+col+';stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round');
-    if (r.N <= 34) for (const q of pts)
-      s += dot(q[0], q[1], 3.1, 'fill:'+col+';stroke:var(--well);stroke-width:1.6');
+    if (r.ts.length <= 35) for (let i=0;i<r.ts.length;i++)
+      s += dot(X(r.ts[i]), Y(r.ys[i]), 3.1, 'fill:'+col+';stroke:var(--well);stroke-width:1.6');
     const last = pts[pts.length-1];
     if (last) labels.push({y:last[1], x:last[0], m, col});
   }
   s += '</g>';
 
-  /* exact gets a direct label too */
   labels.push({y:Y(view.exact.ys[view.exact.ys.length-1]), x:X(t1), m:{short:'exact'}, col:'var(--exact)'});
   placeLabels(labels, pad.t+8, H-pad.b-2);
   for (const L of labels) {
-    const ly = L.ly;
-    s += seg(Math.min(L.x, W-pad.r)+3, Math.min(H-pad.b, Math.max(pad.t, L.y)), W-pad.r+9, ly,
+    s += seg(Math.min(L.x, W-pad.r)+3, Math.min(H-pad.b, Math.max(pad.t, L.y)), W-pad.r+9, L.ly,
              'stroke:'+L.col+';stroke-width:1;opacity:.5');
-    s += dot(W-pad.r+11, ly, 2.6, 'fill:'+L.col);
-    s += txt(W-pad.r+16, ly+3.5, L.m.short, {cls:'end-label'});
+    s += dot(W-pad.r+11, L.ly, 2.6, 'fill:'+L.col);
+    s += txt(W-pad.r+16, L.ly+3.5, L.m.short, {cls:'end-label'});
   }
   s += '<g id="mxh"></g>';
 
@@ -758,14 +1060,52 @@ function drawMain() {
   mainGeom = {W,H,pad,X,Y,t0,t1};
 }
 
+/* The step size the controller settled on, sharing the t axis above it. */
+function drawHStrip() {
+  const box = $('stripBox');
+  box.hidden = !isAdaptive();
+  if (!isAdaptive()) return;
+  const well = $('hWell'), W = Math.max(300, well.clientWidth), H = 112;
+  const pad = {l:MAIN_PAD.l, r:MAIN_PAD.r, t:12, b:24};
+  const [t0,t1] = view.tD;
+  const hs = [];
+  for (const m of METHODS) if (state.visible.has(m.id)) for (const st of runs[m.id].steps) hs.push(st.h);
+  const svg = $('hPlot');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  if (!hs.length) { svg.innerHTML = ''; return; }
+  let lo = Math.floor(Math.log10(Math.min(...hs))), hi = Math.ceil(Math.log10(Math.max(...hs)));
+  if (hi-lo < 1) { hi = lo+1; }
+  const X = t => pad.l + (t-t0)/(t1-t0)*(W-pad.l-pad.r);
+  const Y = v => H-pad.b - (Math.log10(v)-lo)/(hi-lo)*(H-pad.t-pad.b);
+  let s = '';
+  const dstep = Math.max(1, Math.ceil((hi-lo)/3));
+  for (let e=lo; e<=hi; e+=dstep) {
+    s += seg(pad.l, Y(Math.pow(10,e)), W-pad.r, Y(Math.pow(10,e)), '', 'grid');
+    s += txt(pad.l-8, Y(Math.pow(10,e))+3.5, powText(e), {anchor:'end'});
+  }
+  s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
+  s += txt(4, pad.t-1, 'h', {cls:'axis-title'});
+  for (const m of METHODS) {
+    if (!state.visible.has(m.id)) continue;
+    const r = runs[m.id];
+    if (!r.steps.length) continue;
+    const pts = [];
+    for (const st of thin(r.steps, 900)) { pts.push([X(st.t), Y(st.h)], [X(st.t+st.h), Y(st.h)]); }
+    s += path(pts, 'stroke:var('+m.cvar+');stroke-width:1.6;stroke-linejoin:round');
+  }
+  svg.innerHTML = s;
+}
+
 function interpAt(r, t) {
   if (!r.ts.length) return NaN;
   if (t <= r.ts[0]) return r.ys[0];
   const lastT = r.ts[r.ts.length-1];
-  if (t >= lastT) return r.diverged ? NaN : r.ys[r.ys.length-1];
-  const i = Math.min(r.ts.length-2, Math.floor((t-r.ts[0])/r.h));
-  const f = (t-r.ts[i])/r.h;
-  return r.ys[i] + f*(r.ys[i+1]-r.ys[i]);
+  if (t >= lastT) return (r.diverged || r.capped) ? NaN : r.ys[r.ys.length-1];
+  let lo = 0, hi = r.ts.length-1;
+  while (hi - lo > 1) { const mid = (lo+hi)>>1; if (r.ts[mid] <= t) lo = mid; else hi = mid; }
+  const f = (t-r.ts[lo])/(r.ts[hi]-r.ts[lo]);
+  return r.ys[lo] + f*(r.ys[hi]-r.ys[lo]);
 }
 
 function mainHover(ev) {
@@ -780,14 +1120,14 @@ function mainHover(ev) {
   let marks = seg(g.X(t), g.pad.t, g.X(t), g.H-g.pad.b, 'stroke:var(--ink-3);stroke-width:1;stroke-dasharray:2 3');
   marks += dot(g.X(t), g.Y(ye), 3.4, 'fill:var(--exact);stroke:var(--well);stroke-width:1.5');
   let rows = '<span class="tt-h">t = '+sig(t,4)+'</span>' +
-    '<div class="r" style="--c:var(--exact)"><i></i><span>exact</span><b>'+sig(ye,6)+'</b></div>';
+    '<div class="r" style="--c:var(--exact)"><i></i><span>'+(P.custom?'reference':'exact')+'</span><b>'+sig(ye,6)+'</b></div>';
   for (const m of METHODS) {
     if (!state.visible.has(m.id)) continue;
     const v = interpAt(runs[m.id], t);
     const col = 'var('+m.cvar+')';
     if (isFinite(v)) marks += dot(g.X(t), g.Y(v), 3.1, 'fill:'+col+';stroke:var(--well);stroke-width:1.5');
     rows += '<div class="r" style="--c:'+col+'"><i></i><span>'+m.short+'</span><b>'+
-      (isFinite(v) ? sig(v,6) : 'diverged') + '</b></div>';
+      (isFinite(v) ? sig(v,6) : 'no value') + '</b></div>';
     if (isFinite(v)) rows += '<div class="r" style="padding-left:15px"><span>&#8722; error</span><b>'+
       sciText(Math.abs(v-ye))+'</b></div>';
   }
@@ -807,7 +1147,7 @@ function mainLeave() {
 }
 
 /* ===========================================================================
-   8. The step under the glass — where the averaging actually happens
+   8. The step under the glass
    =========================================================================== */
 function drawStep() {
   const m = M_BY_ID[state.inspect], r = runs[m.id];
@@ -818,6 +1158,7 @@ function drawStep() {
   svg.setAttribute('width',W); svg.setAttribute('height',H);
   const st = r.steps[Math.min(state.step, r.steps.length-1)];
   if (!st) { svg.innerHTML = txt(W/2, H/2, 'no step to show', {anchor:'middle'}); return; }
+  const det = stepDetail(P, m, st);
 
   const col = 'var('+m.cvar+')';
   const pad = {l:46, r:66, t:24, b:32};
@@ -826,7 +1167,7 @@ function drawStep() {
   const arc = [];
   for (let i=0;i<=72;i++) { const t = tD[0]+(tD[1]-tD[0])*i/72; arc.push([t, P.flow(ta, st.y, t)]); }
   const exEnd = P.flow(ta, st.y, tb);
-  const cand = [st.y, st.yNext, exEnd].concat(st.pts.map(q=>q.y)).filter(isFinite);
+  const cand = [st.y, st.yNext, exEnd].concat(det.pts.map(q=>q.y)).filter(isFinite);
   let lo = Math.min(...cand), hi = Math.max(...cand);
   const sp0 = (hi-lo) || Math.max(1e-9, Math.abs(st.y)*0.2) || 1;
   for (const a of arc) {
@@ -843,43 +1184,36 @@ function drawStep() {
   for (const v of yt) s += txt(pad.l-7, Y(v)+3.5, tickFmt(v,ystep), {anchor:'end'});
   s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
 
-  /* step boundaries */
   for (const [t,tail] of [[ta,''],[tb,'+h']]) {
     s += seg(X(t), pad.t-6, X(t), H-pad.b, 'stroke:var(--rule-2);stroke-width:1;stroke-dasharray:3 3');
     s += subTxt(X(t), H-pad.b+16, 't', 'n', tail, {anchor:'middle', cls:'annot'});
   }
 
-  /* the true solution flowing on from this point */
   s += path(arc.filter(a=>isFinite(a[1])).map(a=>[X(a[0]),Y(a[1])]),
             'stroke:var(--exact);stroke-width:2;stroke-linejoin:round');
-  s += txt(X(tD[1])+4, Y(arc[arc.length-1][1])+3.5, 'exact', {cls:'end-label'});
+  s += txt(X(tD[1])+4, Y(arc[arc.length-1][1])+3.5, P.custom?'ref.':'exact', {cls:'end-label'});
 
-  /* each probe: dashed path to where it is taken, then a fixed-length slope arrow */
   const dirAt = (t,y,k) => {
     const dt = (tD[1]-tD[0])/60;
     const dx = X(t+dt)-X(t), dy = Y(y+k*dt)-Y(y), L = Math.hypot(dx,dy)||1;
     return [dx/L, dy/L];
   };
-  st.pts.forEach((q,i) => {
-    const k = st.k[i], [ux,uy] = dirAt(q.t,q.y,k);
+  det.pts.forEach((q,i) => {
+    const k = det.k[i], [ux,uy] = dirAt(q.t,q.y,k);
     const px = X(q.t), py = Y(q.y);
-    const faded = m.b[i] === 0;
-    const op = faded ? ';opacity:.42' : '';
+    const op = m.b[i] === 0 ? ';opacity:.42' : '';
     if (q.c > 0 || Math.abs(q.y-st.y) > 1e-15)
       s += seg(X(ta), Y(st.y), px, py, 'stroke:'+col+';stroke-width:1;stroke-dasharray:2.5 3;opacity:.55');
     s += arrow(px-ux*11, py-uy*11, px+ux*31, py+uy*31, 'stroke:'+col+';stroke-width:1.9'+op, 6.5);
     s += dot(px, py, 3.2, 'fill:var(--well);stroke:'+col+';stroke-width:1.7'+op);
-    const lx = px+ux*31 + 6, ly = py+uy*31 - 7;
-    s += subTxt(lx, ly, 'k', String(i+1), '', {cls:'annot', style:'fill:var(--ink-2)'});
+    s += subTxt(px+ux*31+6, py+uy*31-7, 'k', String(i+1), '', {cls:'annot', style:'fill:var(--ink-2)'});
   });
 
-  /* the resulting move: start point, averaged slope, new point */
   s += arrow(X(ta), Y(st.y), X(tb), Y(st.yNext), 'stroke:'+col+';stroke-width:2.6', 8);
   s += dot(X(ta), Y(st.y), 4.2, 'fill:var(--exact);stroke:var(--well);stroke-width:1.6');
   s += dot(X(tb), Y(exEnd), 4, 'fill:var(--exact);stroke:var(--well);stroke-width:1.6');
   s += dot(X(tb), Y(st.yNext), 4.4, 'fill:'+col+';stroke:var(--well);stroke-width:1.8');
 
-  /* local error bracket */
   const yA = Y(st.yNext), yB = Y(exEnd), bx = X(tb)+9, gap = Math.abs(yA-yB);
   const le = Math.abs(st.yNext - exEnd);
   if (gap > 3) {
@@ -899,22 +1233,22 @@ function drawStep() {
 function renderLedger() {
   const m = M_BY_ID[state.inspect], r = runs[m.id];
   const st = r.steps[Math.min(state.step, r.steps.length-1)];
+  const det = st ? stepDetail(P, m, st) : null;
   const col = 'var('+m.cvar+')';
   let html = '<caption class="lbl">Slope ledger &mdash; step ' + (st? st.n+1 : 0) + ' of ' + r.steps.length + '</caption>' +
     '<thead><tr><th scope="col">probe</th><th scope="col">taken at t</th><th scope="col">taken at y</th>' +
     '<th scope="col">slope</th><th scope="col">weight</th></tr></thead><tbody>';
-  if (st) {
-    st.pts.forEach((q,i) => {
+  if (det) {
+    det.pts.forEach((q,i) => {
       html += '<tr><td><span class="k-dot" style="--c:'+col+(m.b[i]===0?';opacity:.42':'')+'"></span>k<sub>'+(i+1)+'</sub></td>' +
-        '<td>'+sig(q.t,5)+'</td><td>'+sig(q.y,6)+'</td><td>'+sig(st.k[i],5)+'</td>' +
+        '<td>'+sig(q.t,5)+'</td><td>'+sig(q.y,6)+'</td><td>'+sig(det.k[i],5)+'</td>' +
         '<td>'+fmtWeight(m.b[i])+'</td></tr>';
     });
     html += '<tr class="total"><td>&#375;&prime;</td><td colspan="2" style="text-align:left;color:var(--ink-3)">weighted average</td>' +
-      '<td>'+sig(st.slope,5)+'</td><td>1</td></tr>';
+      '<td>'+sig(det.slope,5)+'</td><td>1</td></tr>';
   }
   $('ledger').innerHTML = html + '</tbody>';
 
-  /* Butcher tableau: the same numbers, in the form a paper would print them */
   const sN = m.stages.length;
   const tabEl = $('tableau');
   tabEl.style.gridTemplateColumns = 'auto repeat('+sN+', auto)';
@@ -926,13 +1260,23 @@ function renderLedger() {
   tab += '<span class="c brow"><span></span></span>';
   for (let j=0;j<sN;j++) tab += '<span class="a brow"><span>'+fmtWeight(m.b[j])+'</span></span>';
   tabEl.innerHTML = tab;
-  $('updateLine').innerHTML = m.update +
-    (st ? '<br><span class="mono" style="color:var(--ink-3)">= ' + sig(st.y,6) + ' + ' + sig(st.h,4) +
-      '&times;' + sig(st.slope,5) + ' = <span style="color:var(--ink)">' + sig(st.yNext,6) + '</span></span>' : '');
+
+  let upd = m.update;
+  if (st) {
+    upd += '<br><span class="mono" style="color:var(--ink-3)">= ' + sig(st.y,6) + ' + ' + sig(st.h,4) +
+      '&times;' + sig(det.slope,5) + ' = <span style="color:var(--ink)">' + sig(st.yNext,6) + '</span></span>';
+    if (r.adaptive) {
+      const scale = tolValue()*(1+Math.abs(st.y));
+      upd += '<br><span class="mono" style="color:var(--ink-3)">estimated local error ' + sciText(st.est) +
+        ' &le; ' + sciText(scale) + '&ensp;&#10003;</span>' +
+        '<br><span class="mono" style="color:var(--ink-3)">h chosen ' + sig(st.h,4) + '</span>';
+    }
+  }
+  $('updateLine').innerHTML = upd;
 }
 
 /* ===========================================================================
-   10. Convergence: error against step size, or against arithmetic spent
+   10. Convergence, and its adaptive counterpart: work versus precision
    =========================================================================== */
 function quickErr(p, m, N) {
   const h = (p.T-p.t0)/N;
@@ -953,26 +1297,48 @@ function quickErr(p, m, N) {
 }
 
 const FLOOR = 1e-17;
-function convData() {
+
+/* Both sweeps depend only on the problem, so they are computed once per
+   problem and reused while the sliders move. */
+function sweep() {
+  const key = problemKey() + '|' + state.mode + '|' + state.equalWork;
+  if (sweeps[key]) return sweeps[key];
   const out = {};
-  for (const m of METHODS) out[m.id] = CONV_NS.map(N => {
-    const h = (P.T-P.t0)/N, ev = N*evalsPerStep(m);
-    return {N, h, evals:ev, e:quickErr(P,m,N), x: state.equalWork ? ev : h};
-  });
+  if (isAdaptive()) {
+    for (const m of METHODS) out[m.id] = TOLS.map(tol => {
+      const r = integrateAdaptive(P, m, tol);
+      return {tol, N:r.steps.length, rejected:r.rejected, evals:r.evals,
+              e:r.err, x:r.evals, ok:!r.capped && !r.diverged};
+    });
+  } else {
+    for (const m of METHODS) out[m.id] = CONV_NS.map(N => {
+      const h = (P.T-P.t0)/N, ev = N*evalsPerStep(m);
+      return {N, h, evals:ev, e:quickErr(P,m,N), x: state.equalWork ? ev : h, ok:true};
+    });
+  }
+  sweeps[key] = out;
   return out;
 }
+const dropSweeps = () => { for (const k of Object.keys(sweeps)) delete sweeps[k]; };
 
 function drawConv() {
-  const data = convData();
+  const data = sweep(), adaptive = isAdaptive();
   const well = $('convWell'), W = Math.max(280, well.clientWidth);
   const H = Math.round(Math.max(250, Math.min(330, W*0.72)));
   const pad = {l:54, r:66, t:28, b:44};
   const xs = [], es = [];
   for (const m of METHODS) for (const q of data[m.id]) {
+    if (!q.ok || !isFinite(q.e)) continue;
     xs.push(q.x);
-    if (isFinite(q.e) && q.e > 0) es.push(q.e);
+    if (q.e > 0) es.push(q.e);
   }
+  const svg = $('convPlot');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  if (!xs.length || !es.length) { svg.innerHTML = txt(W/2,H/2,'nothing converges at these settings',{anchor:'middle'}); return; }
+
   let xLo = Math.log10(Math.min(...xs)), xHi = Math.log10(Math.max(...xs));
+  if (xHi-xLo < 0.5) { xLo -= 0.4; xHi += 0.4; }
   const xPad = (xHi-xLo)*0.05; xLo -= xPad; xHi += xPad;
   let eLo = Math.floor(Math.log10(Math.max(FLOOR, Math.min(...es))));
   let eHi = Math.ceil(Math.log10(Math.max(...es, 1e-12)));
@@ -994,40 +1360,41 @@ function drawConv() {
   }
   s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
   s += seg(pad.l, pad.t, pad.l, H-pad.b, '', 'axis');
-  s += txt((pad.l+W-pad.r)/2, H-7, state.equalWork ? 'total f evaluations' : 'step size h',
+  s += txt((pad.l+W-pad.r)/2, H-7,
+           adaptive ? 'total f evaluations' : (state.equalWork ? 'total f evaluations' : 'step size h'),
            {anchor:'middle', cls:'axis-title'});
   s += txt(4, pad.t-10, 'error', {cls:'axis-title'});
 
-  const xCur = state.equalWork ? baseN() : (P.T-P.t0)/baseN();
-  if (xCur > Math.pow(10,xLo) && xCur < Math.pow(10,xHi)) {
-    s += seg(X(xCur), pad.t, X(xCur), H-pad.b, 'stroke:var(--ink-3);stroke-width:1;stroke-dasharray:4 3');
-    s += txt(X(xCur), pad.t-4, 'current', {anchor:'middle', cls:'annot'});
+  if (!adaptive) {
+    const xCur = state.equalWork ? baseN() : (P.T-P.t0)/baseN();
+    if (xCur > Math.pow(10,xLo) && xCur < Math.pow(10,xHi)) {
+      s += seg(X(xCur), pad.t, X(xCur), H-pad.b, 'stroke:var(--ink-3);stroke-width:1;stroke-dasharray:4 3');
+      s += txt(X(xCur), pad.t-4, 'current', {anchor:'middle', cls:'annot'});
+    }
   }
 
   const labels = [], hit = [];
   for (const m of METHODS) {
     const col = 'var('+m.cvar+')';
-    const pts = data[m.id].filter(q=>isFinite(q.e)).map(q=>({q, x:X(q.x), y:Y(q.e)}));
+    const pts = data[m.id].filter(q=>q.ok && isFinite(q.e) && q.e>0).map(q=>({q, x:X(q.x), y:Y(q.e)}));
     if (!pts.length) continue;
     const dim = state.visible.has(m.id) ? '' : ';opacity:.35';
     s += path(pts.map(p=>[p.x,p.y]), 'stroke:'+col+';stroke-width:1.8;stroke-linejoin:round'+dim);
     for (const p of pts) {
       s += dot(p.x, p.y, 3.2, 'fill:'+col+';stroke:var(--well);stroke-width:1.6'+dim);
       hit.push({x:p.x, y:p.y, m, q:p.q});
+      if (adaptive && Math.abs(Math.log10(p.q.tol) + state.tol) < 1e-9)
+        s += dot(p.x, p.y, 6.5, 'fill:none;stroke:'+col+';stroke-width:1.5');
     }
     const last = pts.reduce((a,b)=> b.x > a.x ? b : a);
     labels.push({y:last.y, x:last.x, m, col});
   }
   placeLabels(labels, pad.t+8, H-pad.b-2);
   for (const L of labels) {
-    const ly = L.ly;
-    s += seg(L.x+3, L.y, W-pad.r+8, ly, 'stroke:'+L.col+';stroke-width:1;opacity:.5');
-    s += dot(W-pad.r+10, ly, 2.6, 'fill:'+L.col);
-    s += txt(W-pad.r+15, ly+3.5, L.m.short, {cls:'end-label'});
+    s += seg(L.x+3, L.y, W-pad.r+8, L.ly, 'stroke:'+L.col+';stroke-width:1;opacity:.5');
+    s += dot(W-pad.r+10, L.ly, 2.6, 'fill:'+L.col);
+    s += txt(W-pad.r+15, L.ly+3.5, L.m.short, {cls:'end-label'});
   }
-  const svg = $('convPlot');
-  svg.setAttribute('viewBox','0 0 '+W+' '+H);
-  svg.setAttribute('width',W); svg.setAttribute('height',H);
   svg.innerHTML = s + '<g id="cxh"></g>';
   convGeom = {W,H,hit};
   renderConvTable(data);
@@ -1046,8 +1413,9 @@ function convHover(ev) {
   if (!best) { if (xh) xh.innerHTML=''; tip.classList.remove('on'); return; }
   if (xh) xh.innerHTML = dot(best.x, best.y, 6, 'fill:none;stroke:var('+best.m.cvar+');stroke-width:1.6');
   tip.innerHTML = '<span class="tt-h">'+best.m.short+'</span>' +
-    '<div class="r"><span>steps</span><b>'+best.q.N+'</b></div>' +
-    '<div class="r"><span>h</span><b>'+sig(best.q.h,4)+'</b></div>' +
+    (best.q.tol ? '<div class="r"><span>tolerance</span><b>'+sciText(best.q.tol)+'</b></div>' : '') +
+    '<div class="r"><span>steps</span><b>'+best.q.N+(best.q.rejected?' (+'+best.q.rejected+' rej)':'')+'</b></div>' +
+    (best.q.h ? '<div class="r"><span>h</span><b>'+sig(best.q.h,4)+'</b></div>' : '') +
     '<div class="r"><span>f evals</span><b>'+best.q.evals+'</b></div>' +
     '<div class="r"><span>error</span><b>'+sciText(best.q.e)+'</b></div>';
   const scale = rect.width/g.W, tw = tip.offsetWidth;
@@ -1059,11 +1427,16 @@ function convHover(ev) {
 }
 
 function renderConvTable(data) {
-  let html = '<thead><tr><th scope="col">steps</th><th scope="col">h</th>' +
+  const adaptive = isAdaptive();
+  const rows = adaptive ? TOLS : CONV_NS;
+  let html = '<thead><tr><th scope="col">'+(adaptive?'tolerance':'steps')+'</th>' +
+    '<th scope="col">'+(adaptive?'f evals (RK4)':'h')+'</th>' +
     METHODS.map(m=>'<th scope="col">'+m.short+'</th>').join('') + '</tr></thead><tbody>';
-  CONV_NS.forEach((N,i) => {
-    html += '<tr><td>'+N+'</td><td>'+sig((P.T-P.t0)/N,4)+'</td>' +
-      METHODS.map(m=>'<td>'+sciText(data[m.id][i].e)+'</td>').join('') + '</tr>';
+  rows.forEach((v,i) => {
+    const first = adaptive ? sciText(v) : v;
+    const second = adaptive ? (data.rk4[i].ok ? data.rk4[i].evals : '—') : sig((P.T-P.t0)/v,4);
+    html += '<tr><td>'+first+'</td><td>'+second+'</td>' +
+      METHODS.map(m => '<td>'+(data[m.id][i].ok ? sciText(data[m.id][i].e) : 'over '+MAX_STEPS+' steps')+'</td>').join('') + '</tr>';
   });
   $('convTable').innerHTML = html + '</tbody>';
 }
@@ -1072,10 +1445,22 @@ function renderConvTable(data) {
    11. Error table
    =========================================================================== */
 function renderErr() {
+  const adaptive = isAdaptive();
+  $('errHead').innerHTML = '<tr>' +
+    '<th scope="col">Method</th><th scope="col">Order <var>p</var></th><th scope="col"><var>f</var>/step</th>' +
+    '<th scope="col">' + (adaptive ? 'Steps (rejected)' : 'Steps &times; <var>h</var>') + '</th>' +
+    '<th scope="col">' + (adaptive ? 'Total <var>f</var> evals' : 'Error at <var>T</var>') + '</th>' +
+    (adaptive ? '<th scope="col">Error at <var>T</var></th>' : '') +
+    (adaptive ? '' : '<th scope="col" class="bar-cell">log scale</th>') +
+    '<th scope="col">' + (adaptive ? '<var>h</var> range' : 'Measured <var>p</var>') + '</th></tr>';
+
   const rows = METHODS.map(m => {
     const r = runs[m.id];
-    const e2 = quickErr(P, m, r.N*2);
-    const p = (isFinite(r.err) && isFinite(e2) && r.err>0 && e2>0) ? Math.log2(r.err/e2) : NaN;
+    let p = NaN;
+    if (!adaptive) {
+      const e2 = quickErr(P, m, r.N*2);
+      if (isFinite(r.err) && isFinite(e2) && r.err>0 && e2>0) p = Math.log2(r.err/e2);
+    }
     return {m, r, p};
   });
   const finite = rows.filter(x=>isFinite(x.r.err) && x.r.err>0).map(x=>x.r.err);
@@ -1085,20 +1470,35 @@ function renderErr() {
     const col = 'var('+m.cvar+')';
     const frac = isFinite(r.err) && r.err>0
       ? Math.max(0.012, Math.min(1, (Math.log10(r.err)-loLog)/(hiLog-loLog))) : 1;
+    const errCell = r.capped ? 'step limit' : sciHTML(r.err);
     return '<tr class="'+(state.visible.has(m.id)?'':'off')+'">' +
       '<td><span class="m-name"><span class="swatch" style="--c:'+col+'"></span>'+m.name+'</span></td>' +
-      '<td>'+m.order+'</td><td>'+evalsPerStep(m)+'</td><td>'+r.N+' &times; '+sig(r.h,4)+'</td>' +
-      '<td>'+sciHTML(r.err)+'</td>' +
-      '<td class="bar-cell"><span class="bar" style="--c:'+col+'"><i style="width:'+(frac*100).toFixed(1)+
-        '%'+(isFinite(r.err)?'':';opacity:.3')+'"></i></span></td>' +
-      '<td>'+(isFinite(p) ? p.toFixed(2) : '&mdash;')+'</td></tr>';
+      '<td>'+m.order+'</td><td>'+evalsPerStep(m)+'</td>' +
+      '<td>' + (adaptive ? r.steps.length + (r.rejected ? ' (' + r.rejected + ')' : ' (0)')
+                         : r.N + ' &times; ' + sig(r.h,4)) + '</td>' +
+      (adaptive ? '<td>'+r.evals+'</td>' : '') +
+      '<td>'+errCell+'</td>' +
+      (adaptive ? '' : '<td class="bar-cell"><span class="bar" style="--c:'+col+'"><i style="width:'+
+        (frac*100).toFixed(1)+'%'+(isFinite(r.err)?'':';opacity:.3')+'"></i></span></td>') +
+      '<td>' + (adaptive ? (r.steps.length ? sig(r.hMin,3)+'&ndash;'+sig(r.hMax,3) : '&mdash;')
+                         : (isFinite(p) ? p.toFixed(2) : '&mdash;')) + '</td></tr>';
   }).join('');
   $('errTable').querySelector('tbody').innerHTML = body;
 
   const eE = runs.euler.err, eR = runs.rk4.err;
-  const basis = state.equalWork ? 'for the same total arithmetic' : 'for four times the arithmetic per step';
   let line;
-  if (!isFinite(eE)) {
+  if (adaptive) {
+    const ok = METHODS.filter(m=>isFinite(runs[m.id].err));
+    if (!ok.length) line = 'No method reaches <var>T</var> within the step limit at this tolerance &mdash; loosen it.';
+    else {
+      const cheapest = ok.reduce((a,b)=> runs[b.id].evals < runs[a.id].evals ? b : a);
+      const cr = runs[cheapest.id];
+      line = 'Every method is now held to the same per-step tolerance, so the question becomes what that costs. <b>' +
+        cheapest.name + '</b> gets there on <b>' + cr.evals + '</b> evaluations of <var>f</var> in <b>' +
+        cr.steps.length + '</b> steps' + (cr.rejected ? ' (' + cr.rejected + ' rejected)' : '') +
+        ', finishing <b>' + sciHTML(cr.err) + '</b> from the truth.';
+    }
+  } else if (!isFinite(eE)) {
     line = 'Forward Euler has already lost the problem at <b>h = '+sig(runs.euler.h,4)+'</b> &mdash; its answer runs away to infinity, '+
       'while RK4 finishes within <b>'+sciHTML(eR)+'</b> of the truth.';
   } else if (isFinite(eR) && eR > 0 && eE/eR < 1) {
@@ -1106,49 +1506,69 @@ function renderErr() {
       sig(runs.rk4.h,4)+'</b> are coarse enough that Euler&rsquo;s answer is the better one, by <b>'+
       sciHTML(eR/eE)+'</b>. Order of accuracy only pays once the step is small enough to be stable.';
   } else if (isFinite(eR) && eR > 0) {
-    const ratio = eE/eR;
-    line = 'At <b>h = '+sig(runs.rk4.h,4)+'</b> RK4 lands <b>'+sciHTML(ratio)+
+    const basis = state.equalWork ? 'for the same total arithmetic' : 'for four times the arithmetic per step';
+    line = 'At <b>h = '+sig(runs.rk4.h,4)+'</b> RK4 lands <b>'+sciHTML(eE/eR)+
       '</b> times closer to <var>y</var>('+sig(P.T,4)+') than Euler does, '+basis+'.';
   } else {
     line = 'RK4 is already at the limit of double precision here; Euler is off by <b>'+sciHTML(eE)+'</b>.';
   }
   $('ratioLine').innerHTML = line;
-  $('errCap').innerHTML = 'Measured <var>p</var> is log<sub>2</sub> of the error ratio between this step size and half of it &mdash; ' +
-    'the order each method is actually achieving, not the order its theory promises.';
+  $('errCap').innerHTML = adaptive
+    ? 'Each method chose its own steps to keep the estimated local error under the tolerance, so the columns to compare are cost and the error actually delivered.'
+    : 'Measured <var>p</var> is log<sub>2</sub> of the error ratio between this step size and half of it &mdash; the order each method is actually achieving, not the order its theory promises.';
 }
 
 /* ===========================================================================
-   12. Chrome: chips, legend, tabs, captions
+   12. Chrome
    =========================================================================== */
 function renderChrome() {
+  const adaptive = isAdaptive();
   $('problemChips').innerHTML = PROBLEMS.map(p =>
     '<button class="chip" type="button" data-pid="'+p.id+'" aria-pressed="'+(p.id===state.pid)+'">'+p.label+'</button>'
-  ).join('');
+  ).join('') + '<button class="chip" type="button" data-pid="custom" aria-pressed="'+
+    (state.pid==='custom')+'">Your own&hellip;</button>';
+  $('customForm').hidden = state.pid !== 'custom';
+  $('customForm').classList.toggle('bad', !!customMsg);
+  $('fnErr').textContent = customMsg ? customMsg + (customP ? ' — still showing the last one that worked.' : '') : '';
   $('odeLine').innerHTML = P.ode;
   $('solLine').innerHTML = P.sol;
   $('problemBlurb').textContent = P.blurb;
 
+  $('modeSeg').querySelectorAll('[data-mode]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
+  $('fixedCtl').hidden = adaptive;
+  $('tolCtl').hidden = !adaptive;
+  $('workCtl').hidden = adaptive;
+
   const N = baseN(), span = P.T-P.t0;
   $('stepsReadout').innerHTML = 'h = '+sig(span/N,4)+' &middot; '+N+' steps';
+  $('tolReadout').innerHTML = 'per step &le; '+sciText(tolValue())+' &times; (1 + |<var>y</var>|)';
+  $('tolRange').value = state.tol;
 
   $('legend').innerHTML = METHODS.map(m => {
-    const r = runs[m.id], on = state.visible.has(m.id);
-    const off = view.off.has(m.id);
+    const r = runs[m.id], on = state.visible.has(m.id), off = view.off.has(m.id);
+    const meta = adaptive
+      ? r.steps.length+' steps'+(r.rejected?' ('+r.rejected+' rej)':'')+' &middot; '+r.evals+' f evals'
+      : 'h='+sig(r.h,3)+' &middot; '+r.evals+' f evals';
     return '<button class="series-btn" type="button" data-mid="'+m.id+'" aria-pressed="'+on+'" style="--c:var('+m.cvar+')">' +
       '<span class="swatch" style="--c:var('+m.cvar+')"></span><span class="stack">' +
-      '<span class="nm">'+m.short+'</span><span class="meta">h='+sig(r.h,3)+' &middot; '+r.evals+' f evals</span>' +
-      '</span></button>' + (on && off ?
-      '<span class="warn-chip" style="--c:var('+m.cvar+')">'+(r.diverged?'diverges':'off frame')+'</span>' : '');
+      '<span class="nm">'+m.short+'</span><span class="meta">'+meta+'</span>' +
+      '</span></button>' + (on && (off || r.capped) ?
+      '<span class="warn-chip" style="--c:var('+m.cvar+')">'+
+      (r.capped ? 'step limit' : r.diverged ? 'diverges' : 'off frame')+'</span>' : '');
   }).join('') +
   '<button class="series-btn" type="button" disabled aria-pressed="true" style="--c:var(--exact);cursor:default">' +
-  '<span class="swatch" style="--c:var(--exact)"></span><span class="stack"><span class="nm">exact</span>' +
-  '<span class="meta">closed form</span></span></button>';
+  '<span class="swatch" style="--c:var(--exact)"></span><span class="stack"><span class="nm">'+
+  (P.custom?'reference':'exact')+'</span><span class="meta">'+(P.custom?'RK4, '+RK4_REF+' steps':'closed form')+
+  '</span></span></button>';
 
-  $('mainNote').innerHTML = state.equalWork
-    ? 'Every method spends about ' + N + ' <var>f</var> evaluations'
-    : 'Every method takes the same step <var>h</var> = ' + sig(span/N,4);
-  $('mainCap').innerHTML = 'The ink curve is the closed-form solution. Each coloured polyline is what a method actually computes &mdash; ' +
-    'dots are the points it lands on; between them it knows nothing. Hover for values at any <var>t</var>.';
+  $('mainNote').innerHTML = adaptive
+    ? 'Each method picks its own steps to hold the same error tolerance'
+    : (state.equalWork ? 'Every method spends about ' + N + ' <var>f</var> evaluations'
+                       : 'Every method takes the same step <var>h</var> = ' + sig(span/N,4));
+  $('mainCap').innerHTML = 'The ink curve is the ' + (P.custom ? 'reference' : 'closed-form') + ' solution. ' +
+    'Each coloured polyline is what a method actually computes &mdash; dots are the points it lands on; ' +
+    'between them it knows nothing. Hover for values at any <var>t</var>.';
 
   $('inspTabs').innerHTML = METHODS.map(m =>
     '<button class="tab" type="button" data-mid="'+m.id+'" aria-pressed="'+(m.id===state.inspect)+
@@ -1160,29 +1580,47 @@ function renderChrome() {
   sr.value = state.step;
   const st = ir.steps[state.step];
   $('stepReadout').innerHTML = st
-    ? 'step '+(st.n+1)+' of '+ir.steps.length+' &middot; t: '+sig(st.t,4)+' &rarr; '+sig(st.t+st.h,4)
+    ? 'step '+(st.n+1)+' of '+ir.steps.length+' &middot; t: '+sig(st.t,4)+' &rarr; '+sig(st.t+st.h,4)+
+      (ir.adaptive ? ' &middot; h = '+sig(st.h,3) : '')
     : '&mdash;';
 
-  $('convTitle').textContent = state.equalWork ? 'Accuracy per unit of work' : 'Order of accuracy';
-  $('convNote').innerHTML = state.equalWork
-    ? 'Log&ndash;log: error against <var>f</var> evaluations'
-    : 'Log&ndash;log: error against <var>h</var>';
-  $('convCap').innerHTML = state.equalWork
-    ? 'Cost, not step size, on the horizontal axis &mdash; so this is the fair comparison: for any arithmetic budget, ' +
-      'read off which method gets closest. RK4 pays 4&times; per step and still wins by orders of magnitude.'
-    : 'On log&ndash;log axes a method of order <var>p</var> plots as a straight line of slope <var>p</var>: ' +
-      'Euler drops one decade per decade, the averaged pair two, RK4 four. The dashed line marks the current setting.';
+  $('convTitle').textContent = adaptive ? 'Work versus precision'
+    : (state.equalWork ? 'Accuracy per unit of work' : 'Order of accuracy');
+  $('convNote').innerHTML = adaptive
+    ? 'Log&ndash;log: error against cost, over eight tolerances'
+    : (state.equalWork ? 'Log&ndash;log: error against <var>f</var> evaluations' : 'Log&ndash;log: error against <var>h</var>');
+  $('convCap').innerHTML = adaptive
+    ? 'One point per tolerance, from 10<sup>&minus;2</sup> down to 10<sup>&minus;9</sup>; the ringed point is the tolerance ' +
+      'set above. Down and to the left is better. A line that stops short is a method that could not reach that tolerance ' +
+      'within ' + MAX_STEPS + ' steps.'
+    : (state.equalWork
+      ? 'Cost, not step size, on the horizontal axis &mdash; so this is the fair comparison: for any arithmetic budget, ' +
+        'read off which method gets closest. RK4 pays 4&times; per step and still wins by orders of magnitude.'
+      : 'On log&ndash;log axes a method of order <var>p</var> plots as a straight line of slope <var>p</var>: ' +
+        'Euler drops one decade per decade, the averaged pair two, RK4 four. The dashed line marks the current setting.');
 }
 
 /* ===========================================================================
    13. Wiring
    =========================================================================== */
-function render() { recompute(); renderChrome(); drawMain(); drawStep(); renderLedger(); renderErr(); drawConv(); }
+function render() {
+  recompute(); renderChrome(); drawMain(); drawHStrip(); drawStep(); renderLedger(); renderErr(); drawConv();
+}
 
 $('problemChips').addEventListener('click', e => {
   const b = e.target.closest('[data-pid]');
   if (!b) return;
-  state.pid = b.dataset.pid; state.step = Math.min(state.step, 3); render();
+  state.pid = b.dataset.pid;
+  if (state.pid === 'custom' && !customP) rebuildCustom();
+  state.step = Math.min(state.step, 3);
+  render();
+});
+$('modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]');
+  if (!b || b.dataset.mode === state.mode) return;
+  state.mode = b.dataset.mode;
+  state.step = Math.min(state.step, 3);
+  render();
 });
 $('legend').addEventListener('click', e => {
   const b = e.target.closest('[data-mid]');
@@ -1200,8 +1638,26 @@ $('inspTabs').addEventListener('click', e => {
   render();
 });
 $('stepsRange').addEventListener('input', e => { state.slider = +e.target.value; render(); });
-$('stepRange').addEventListener('input', e => { state.step = +e.target.value; renderChrome(); drawMain(); drawStep(); renderLedger(); });
+$('tolRange').addEventListener('input', e => { state.tol = +e.target.value; render(); });
+$('stepRange').addEventListener('input', e => {
+  state.step = +e.target.value; renderChrome(); drawMain(); drawStep(); renderLedger();
+});
 $('equalWork').addEventListener('change', e => { state.equalWork = e.target.checked; render(); });
+
+let customTimer = null;
+function customChanged() {
+  clearTimeout(customTimer);
+  customTimer = setTimeout(() => {
+    state.custom = {src:$('fnInput').value, y0:+$('y0Input').value,
+                    t0:+$('t0Input').value, T:+$('t1Input').value};
+    rebuildCustom();
+    dropSweeps();
+    state.pid = 'custom';
+    render();
+  }, 260);
+}
+for (const id of ['fnInput','y0Input','t0Input','t1Input'])
+  $(id).addEventListener('input', customChanged);
 
 let timer = null;
 $('playBtn').addEventListener('click', () => {
@@ -1230,10 +1686,10 @@ $('convWell').addEventListener('pointerleave', () => {
 let rt = null;
 new ResizeObserver(() => {
   clearTimeout(rt);
-  rt = setTimeout(() => { drawMain(); drawStep(); drawConv(); }, 90);
+  rt = setTimeout(() => { drawMain(); drawHStrip(); drawStep(); drawConv(); }, 90);
 }).observe($('mainWell'));
 
 $('stepsRange').value = state.slider;
 render();
-document.fonts && document.fonts.ready.then(() => { drawMain(); drawStep(); drawConv(); });
+document.fonts && document.fonts.ready.then(() => { drawMain(); drawHStrip(); drawStep(); drawConv(); });
 </script>
