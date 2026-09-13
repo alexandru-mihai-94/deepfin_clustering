@@ -1,0 +1,1239 @@
+<title>Averaging the Slopes</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg:#EDF1F1; --card:#FAFBFB; --well:#F1F4F4; --well-2:#E4EAEA;
+    --ink:#12181B; --ink-2:#45535B; --ink-3:#6F7E86;
+    --rule:#D5DCDC; --rule-2:#BAC5C6;
+    --exact:#1A2226; --exact-soft:#8E9A9E;
+    --s1:#896105; --s2:#692e9b; --s3:#447be4; --s4:#039a97;
+    --focus:#0d6b68;
+    --shadow:0 1px 2px rgba(18,24,27,.05), 0 6px 18px -12px rgba(18,24,27,.18);
+    --serif:"Spectral", Georgia, "Times New Roman", serif;
+    --ui:"Archivo", "Helvetica Neue", Arial, sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#10171B; --card:#1A242A; --well:#141B20; --well-2:#202B31;
+      --ink:#E7EDED; --ink-2:#A6B4B9; --ink-3:#7A898F;
+      --rule:#2A353B; --rule-2:#3B4A51;
+      --exact:#DCE4E5; --exact-soft:#6E7D84;
+      --s1:#a8790c; --s2:#864ebc; --s3:#5088f2; --s4:#0ea09d;
+      --focus:#3fb6b0;
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#10171B; --card:#1A242A; --well:#141B20; --well-2:#202B31;
+    --ink:#E7EDED; --ink-2:#A6B4B9; --ink-3:#7A898F;
+    --rule:#2A353B; --rule-2:#3B4A51;
+    --exact:#DCE4E5; --exact-soft:#6E7D84;
+    --s1:#a8790c; --s2:#864ebc; --s3:#5088f2; --s4:#0ea09d;
+    --focus:#3fb6b0;
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+
+  *, *::before, *::after { box-sizing:border-box; }
+  body {
+    background:var(--bg); color:var(--ink);
+    font-family:var(--serif); font-size:16px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1200px; margin:0 auto; padding-inline:20px; padding-block:36px 56px; }
+  @media (max-width:620px) { .wrap { padding-inline:16px; padding-block:24px 40px; } }
+
+  /* ---------- type ---------- */
+  h1, h2, h3 { margin:0; font-weight:600; text-wrap:balance; letter-spacing:-0.012em; }
+  h1 { font-size:clamp(2rem, 5vw, 2.9rem); line-height:1.06; }
+  h2 { font-size:1.06rem; letter-spacing:0.01em; }
+  h3 { font-size:0.95rem; }
+  p { margin:0; }
+  .eyebrow {
+    font-family:var(--ui); font-size:0.675rem; font-weight:600;
+    letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-3);
+  }
+  .deck { font-size:1.075rem; color:var(--ink-2); max-width:64ch; }
+  .note { font-size:0.855rem; color:var(--ink-3); max-width:70ch; }
+  .lbl {
+    font-family:var(--ui); font-size:0.66rem; font-weight:600;
+    letter-spacing:0.13em; text-transform:uppercase; color:var(--ink-3);
+  }
+  var, .v { font-family:var(--serif); font-style:italic; }
+  .mono, .num { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:0.86em; }
+  sup, sub { font-size:0.68em; line-height:0; }
+
+  /* ---------- header ---------- */
+  header.masthead { display:flex; flex-direction:column; gap:12px; }
+  .rule-line { height:1px; background:var(--rule); margin-block:26px; border:0; }
+
+  /* ---------- problem statement ---------- */
+  .ivp { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:22px 32px; align-items:start; }
+  @media (max-width:820px) { .ivp { grid-template-columns:minmax(0,1fr); gap:18px; } }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  .chip {
+    font-family:var(--ui); font-size:0.79rem; font-weight:500;
+    padding:6px 11px; border:1px solid var(--rule-2); border-radius:2px;
+    background:transparent; color:var(--ink-2); transition:border-color .12s, color .12s, background .12s;
+  }
+  .chip:hover { border-color:var(--ink-3); color:var(--ink); }
+  .chip[aria-pressed="true"] { background:var(--ink); border-color:var(--ink); color:var(--card); }
+  :is(button, input, summary, a):focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+
+  .eqn {
+    display:flex; flex-direction:column; gap:9px;
+    padding:16px 18px; background:var(--card); border:1px solid var(--rule);
+    border-left:3px solid var(--exact); box-shadow:var(--shadow);
+  }
+  .eqn .line { font-size:1.16rem; letter-spacing:0.005em; }
+  .eqn .sub { font-size:0.93rem; color:var(--ink-2); }
+
+  /* ---------- control bar ---------- */
+  .controls {
+    display:flex; flex-wrap:wrap; align-items:flex-end; gap:18px 30px;
+    padding:15px 18px; background:var(--card); border:1px solid var(--rule);
+    box-shadow:var(--shadow);
+  }
+  .ctl { display:flex; flex-direction:column; gap:7px; }
+  .ctl.grow { flex:1 1 280px; min-width:220px; }
+  .ctl .row { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; justify-content:space-between; }
+  .readout { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:0.9rem; color:var(--ink); }
+  input[type="range"] { -webkit-appearance:none; appearance:none; width:100%; background:transparent; height:20px; margin:0; }
+  input[type="range"]::-webkit-slider-runnable-track { height:2px; background:var(--rule-2); }
+  input[type="range"]::-moz-range-track { height:2px; background:var(--rule-2); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:15px; height:15px; margin-top:-6.5px;
+    border-radius:50%; background:var(--ink); border:2px solid var(--card);
+  }
+  input[type="range"]::-moz-range-thumb { width:13px; height:13px; border-radius:50%; background:var(--ink); border:2px solid var(--card); }
+
+  .switch { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+  .switch input { position:absolute; opacity:0; width:1px; height:1px; }
+  .track {
+    width:38px; height:20px; border-radius:10px; background:var(--well-2);
+    border:1px solid var(--rule-2); position:relative; transition:background .15s, border-color .15s; flex:none;
+  }
+  .track::after {
+    content:""; position:absolute; inset:2px auto 2px 2px; width:14px; border-radius:50%;
+    background:var(--ink-3); transition:transform .15s, background .15s;
+  }
+  .switch input:checked + .track { background:var(--exact); border-color:var(--exact); }
+  .switch input:checked + .track::after { transform:translateX(18px); background:var(--card); }
+  .switch input:focus-visible + .track { outline:2px solid var(--focus); outline-offset:2px; }
+  .switch .txt { display:flex; flex-direction:column; gap:1px; }
+  .switch .txt b { font-family:var(--ui); font-size:0.83rem; font-weight:500; }
+  .switch .txt span { font-size:0.78rem; color:var(--ink-3); }
+
+  /* ---------- plate ---------- */
+  .plate { display:grid; grid-template-columns:minmax(0,1.52fr) minmax(320px,1fr); gap:22px; margin-top:22px; align-items:start; }
+  @media (max-width:940px) { .plate { grid-template-columns:minmax(0,1fr); } }
+
+  figure { margin:0; background:var(--card); border:1px solid var(--rule); box-shadow:var(--shadow); }
+  .fig-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px 16px; padding:14px 16px 11px; }
+  .fig-head h2 { font-size:1rem; }
+  .fig-head .note { font-size:0.8rem; }
+  .plot-well { background:var(--well); border-block:1px solid var(--rule); position:relative; }
+  .plot-well svg { display:block; width:100%; height:auto; }
+  figcaption { padding:11px 16px 14px; font-size:0.83rem; color:var(--ink-3); }
+
+  /* legend / series toggles */
+  .legend { display:flex; flex-wrap:wrap; gap:4px; padding:12px 14px; }
+  .series-btn {
+    display:flex; align-items:center; gap:8px; background:transparent;
+    border:1px solid transparent; border-radius:2px; padding:5px 9px 5px 7px; text-align:left;
+    transition:background .12s, border-color .12s;
+  }
+  .series-btn:hover { background:var(--well); }
+  .series-btn[aria-pressed="false"] { opacity:.45; }
+  .series-btn[aria-pressed="true"] { border-color:var(--rule); background:var(--well); }
+  .swatch { width:22px; height:10px; flex:none; position:relative; }
+  .swatch::before { content:""; position:absolute; left:0; right:0; top:4px; height:2.5px; background:var(--c); }
+  .swatch.dotted::before { background:none; border-top:2.5px dotted var(--c); top:3px; }
+  .series-btn .nm { font-family:var(--ui); font-size:0.82rem; font-weight:500; line-height:1.15; }
+  .series-btn .meta { font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); line-height:1.3; }
+  .series-btn .stack { display:flex; flex-direction:column; }
+  .warn-chip {
+    font-family:var(--ui); font-size:0.68rem; font-weight:600; letter-spacing:.04em;
+    border:1px solid var(--rule-2); border-left:3px solid var(--c, var(--ink-3));
+    padding:3px 7px; color:var(--ink-2); background:var(--well);
+  }
+
+  /* tooltip */
+  .tip {
+    position:absolute; pointer-events:none; z-index:5; min-width:120px;
+    background:var(--card); border:1px solid var(--rule-2); box-shadow:var(--shadow);
+    padding:8px 10px; font-family:var(--mono); font-size:0.74rem; line-height:1.5;
+    opacity:0; transition:opacity .08s; white-space:nowrap;
+  }
+  .tip.on { opacity:1; }
+  .tip .tt-h { font-family:var(--ui); font-size:0.68rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:3px; }
+  .tip .r { display:flex; align-items:center; gap:6px; justify-content:space-between; }
+  .tip .r i { width:9px; height:9px; flex:none; background:var(--c); border-radius:1px; }
+  .tip .r span { color:var(--ink-2); }
+  .tip .r b { font-weight:500; }
+
+  /* ---------- inspector ---------- */
+  .tabs { display:flex; gap:2px; padding:12px 14px 0; flex-wrap:wrap; }
+  .tab {
+    font-family:var(--ui); font-size:0.79rem; font-weight:500; background:transparent;
+    border:0; border-bottom:2px solid transparent; padding:6px 9px; color:var(--ink-3);
+  }
+  .tab:hover { color:var(--ink); }
+  .tab[aria-pressed="true"] { color:var(--ink); border-bottom-color:var(--c); }
+  .insp-desc { padding:10px 16px 0; font-size:0.9rem; color:var(--ink-2); }
+  .ledger { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.76rem; }
+  .ledger caption { text-align:left; padding:14px 16px 6px; }
+  .ledger th, .ledger td { padding:4px 6px; text-align:right; font-variant-numeric:tabular-nums; border-bottom:1px solid var(--rule); }
+  .ledger th { font-family:var(--ui); font-size:0.64rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); white-space:nowrap; }
+  .ledger th:first-child, .ledger td:first-child { text-align:left; padding-left:16px; }
+  .ledger td:last-child, .ledger th:last-child { padding-right:16px; }
+  .ledger tr.total td { border-bottom:0; border-top:1.5px solid var(--ink-3); font-weight:500; }
+  .ledger tr.total td:first-child { font-family:var(--serif); font-style:italic; font-size:1.06em; }
+  .k-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--c); margin-right:6px; vertical-align:baseline; }
+
+  .tableau-box { display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; padding:14px 16px 16px; border-top:1px solid var(--rule); }
+  .tableau { font-family:var(--mono); font-size:0.78rem; display:inline-grid; gap:0 10px; }
+  .tableau b { font-weight:500; }
+  .tableau .c { text-align:right; padding-right:10px; border-right:1.5px solid var(--rule-2); }
+  .tableau .a { text-align:center; min-width:1.9em; }
+  .tableau .brow > * { border-top:1.5px solid var(--rule-2); margin-top:3px; padding-top:3px; }
+  .stepline { font-size:0.95rem; }
+  .stepline .v { font-size:1.05em; }
+
+  /* ---------- results band ---------- */
+  .band { display:grid; grid-template-columns:minmax(0,1.32fr) minmax(0,1fr); gap:22px; margin-top:22px; align-items:start; }
+  @media (max-width:940px) { .band { grid-template-columns:minmax(0,1fr); } }
+
+  .tbl-scroll { overflow-x:auto; }
+  table.err { width:100%; border-collapse:collapse; font-size:0.8rem; }
+  table.err th, table.err td { padding:7px 7px; border-bottom:1px solid var(--rule); white-space:nowrap; }
+  table.err thead th {
+    font-family:var(--ui); font-size:0.63rem; font-weight:600; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-3); text-align:right; vertical-align:bottom;
+    border-bottom:1.5px solid var(--rule-2);
+  }
+  table.err thead th:first-child { text-align:left; }
+  table.err td { text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  table.err td:first-child { text-align:left; font-family:var(--serif); }
+  table.err th:first-child, table.err td:first-child { padding-left:16px; }
+  table.err th:last-child, table.err td:last-child { padding-right:16px; }
+  table.err tr.off { opacity:.5; }
+  .m-name { display:flex; align-items:center; gap:9px; }
+  .m-name .swatch { width:20px; }
+  .bar-cell { width:92px; }
+  .bar { height:8px; background:var(--well-2); position:relative; min-width:56px; }
+  .bar i { position:absolute; inset:0 auto 0 0; background:var(--c); border-radius:0 3px 3px 0; }
+  .headline { padding:14px 16px 0; font-size:0.95rem; color:var(--ink-2); }
+  .headline b { color:var(--ink); font-weight:500; }
+
+  details { border-top:1px solid var(--rule); }
+  summary { font-family:var(--ui); font-size:0.76rem; font-weight:500; padding:11px 16px; color:var(--ink-2); }
+  summary::marker { color:var(--ink-3); }
+  details[open] summary { border-bottom:1px solid var(--rule); }
+  .grid-tbl { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:0.72rem; }
+  .grid-tbl th, .grid-tbl td { padding:4px 8px; text-align:right; border-bottom:1px solid var(--rule); font-variant-numeric:tabular-nums; }
+  .grid-tbl th { font-family:var(--ui); font-size:0.62rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .grid-tbl th:first-child, .grid-tbl td:first-child { padding-left:16px; text-align:left; }
+
+  /* ---------- footer ---------- */
+  .notes { display:grid; grid-template-columns:repeat(auto-fit, minmax(250px,1fr)); gap:20px 32px; margin-top:34px; padding-top:22px; border-top:1px solid var(--rule); }
+  .notes h3 { font-family:var(--ui); font-size:0.68rem; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); margin-bottom:6px; }
+  .notes p { font-size:0.865rem; color:var(--ink-2); }
+
+  /* ---------- chart primitives ---------- */
+  .chart text { font-family:var(--ui); font-size:11px; fill:var(--ink-3); }
+  .chart text.axis-title { font-family:var(--serif); font-style:italic; font-size:13px; fill:var(--ink-2); }
+  .chart text.end-label { font-family:var(--ui); font-size:10.5px; font-weight:600; fill:var(--ink-2); }
+  .chart text.annot { font-family:var(--mono); font-size:10px; fill:var(--ink-2); }
+  .chart .grid { stroke:var(--rule); stroke-width:1; }
+  .chart .axis { stroke:var(--rule-2); stroke-width:1; }
+  .chart .stepband { fill:var(--well-2); }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Initial-value problems &middot; one-step methods</p>
+    <h1>Averaging the slopes</h1>
+    <p class="deck">
+      Every method here answers the same question — <em>given the solution&rsquo;s height now, where is it one
+      step <var>h</var> from now?</em> — and every one answers it by sampling the slope field <var>f</var>(<var>t</var>,&thinsp;<var>y</var>)
+      a handful of times and taking a weighted average. Forward Euler samples once. Everything that beats it
+      samples more, and averages better.
+    </p>
+  </header>
+
+  <hr class="rule-line">
+
+  <section class="ivp">
+    <div>
+      <p class="lbl" id="pickLbl">Test problem</p>
+      <div class="chips" role="group" aria-labelledby="pickLbl" id="problemChips"></div>
+      <p class="note" id="problemBlurb" style="margin-top:12px"></p>
+    </div>
+    <div class="eqn">
+      <p class="lbl">The problem</p>
+      <p class="line" id="odeLine"></p>
+      <p class="sub" id="solLine"></p>
+    </div>
+  </section>
+
+  <div class="controls" style="margin-top:22px">
+    <div class="ctl grow">
+      <div class="row">
+        <label class="lbl" for="stepsRange">Step size</label>
+        <span class="readout" id="stepsReadout"></span>
+      </div>
+      <input id="stepsRange" type="range" min="0" max="100" value="28" step="1"
+             aria-describedby="stepsReadout">
+    </div>
+    <div class="ctl">
+      <span class="lbl">Basis of comparison</span>
+      <label class="switch" for="equalWork">
+        <input type="checkbox" id="equalWork">
+        <span class="track" aria-hidden="true"></span>
+        <span class="txt">
+          <b>Equal cost</b>
+          <span>Match total <var>f</var> evaluations, not <var>h</var></span>
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <div class="plate">
+
+    <figure>
+      <div class="fig-head">
+        <h2>Marching across the interval</h2>
+        <p class="note" id="mainNote"></p>
+      </div>
+      <div class="plot-well" id="mainWell">
+        <svg id="mainPlot" class="chart" role="img" aria-label="Computed solutions plotted against the exact solution"></svg>
+        <div class="tip" id="mainTip"></div>
+      </div>
+      <div class="legend" id="legend" role="group" aria-label="Show or hide each method"></div>
+      <figcaption id="mainCap"></figcaption>
+    </figure>
+
+    <figure>
+      <div class="tabs" role="group" aria-label="Method to dissect" id="inspTabs"></div>
+      <p class="insp-desc" id="inspDesc"></p>
+      <div class="fig-head" style="padding-bottom:6px">
+        <div class="ctl grow" style="gap:5px">
+          <div class="row">
+            <label class="lbl" for="stepRange">Step under the glass</label>
+            <span class="readout" id="stepReadout"></span>
+          </div>
+          <input id="stepRange" type="range" min="0" max="11" value="3" step="1">
+        </div>
+        <button class="chip" id="playBtn" aria-pressed="false" style="align-self:flex-end">March &#9654;</button>
+      </div>
+      <div class="plot-well" id="stepWell">
+        <svg id="stepPlot" class="chart" role="img" aria-label="One step of the method magnified, showing each slope probe"></svg>
+      </div>
+      <table class="ledger" id="ledger">
+        <caption class="lbl">Slope ledger for this step</caption>
+      </table>
+      <div class="tableau-box">
+        <div>
+          <p class="lbl" style="margin-bottom:7px">Butcher tableau</p>
+          <div class="tableau" id="tableau"></div>
+        </div>
+        <div style="flex:1 1 150px; min-width:150px">
+          <p class="lbl" style="margin-bottom:7px">Update</p>
+          <p class="stepline" id="updateLine"></p>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+
+  <div class="band">
+
+    <figure>
+      <div class="fig-head">
+        <h2>Error at the far end</h2>
+        <p class="note">Distance from the true <var>y</var>(<var>T</var>)</p>
+      </div>
+      <p class="headline" id="ratioLine"></p>
+      <div class="tbl-scroll">
+        <table class="err" id="errTable">
+          <thead>
+            <tr>
+              <th scope="col">Method</th>
+              <th scope="col">Order <var>p</var></th>
+              <th scope="col"><var>f</var>/step</th>
+              <th scope="col">Steps &times; <var>h</var></th>
+              <th scope="col">Error at <var>T</var></th>
+              <th scope="col" class="bar-cell">log scale</th>
+              <th scope="col">Measured <var>p</var></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <figcaption id="errCap"></figcaption>
+    </figure>
+
+    <figure>
+      <div class="fig-head">
+        <h2 id="convTitle">Order of accuracy</h2>
+        <p class="note" id="convNote"></p>
+      </div>
+      <div class="plot-well" id="convWell">
+        <svg id="convPlot" class="chart" role="img" aria-label="Log-log plot of global error against step size"></svg>
+        <div class="tip" id="convTip"></div>
+      </div>
+      <figcaption id="convCap"></figcaption>
+      <details>
+        <summary>Read the numbers behind this plot</summary>
+        <div class="tbl-scroll"><table class="grid-tbl" id="convTable"></table></div>
+      </details>
+    </figure>
+
+  </div>
+
+  <div class="notes">
+    <div>
+      <h3>What order <var>p</var> buys you</h3>
+      <p>Global error behaves like <var>E</var>&nbsp;&approx;&nbsp;<var>C</var><var>h</var><sup><var>p</var></sup>.
+      Halve the step and Euler&rsquo;s error halves; midpoint and Heun cut theirs to a quarter; RK4 cuts its to a
+      sixteenth. That exponent, not the constant <var>C</var>, is what makes the difference worth four
+      slope evaluations.</p>
+    </div>
+    <div>
+      <h3>Why averaging works</h3>
+      <p>Expand the exact step as a Taylor series. Euler keeps the <var>h</var><var>y</var>&prime; term and drops
+      &frac12;<var>h</var><sup>2</sup><var>y</var>&Prime;. Averaging the slope at both ends of the step
+      reproduces that second term too, so it cancels instead of accumulating &mdash; the trapezoid rule, applied
+      to a curve you have not solved yet.</p>
+    </div>
+    <div>
+      <h3>The floor at 10<sup>&minus;16</sup></h3>
+      <p>On the log&ndash;log plot RK4&rsquo;s line stops falling and turns ragged near 10<sup>&minus;15</sup>.
+      That is double-precision rounding, not the method giving up: once the truncation error drops below
+      the noise in the arithmetic, smaller steps only add more roundoff.</p>
+    </div>
+    <div>
+      <h3>Accuracy is not stability</h3>
+      <p>On <var>y</var>&prime;&nbsp;=&nbsp;&minus;6<var>y</var>, Euler needs
+      <var>h</var>&nbsp;&lt;&nbsp;2/6 just to stay bounded &mdash; past that its answer oscillates and grows while
+      the true solution decays to nothing. Midpoint and Heun share that limit; RK4 holds on to
+      <var>h</var>&nbsp;&approx;&nbsp;0.46. Try it.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ===========================================================================
+   1. The test problems.  Each carries the general flow through an arbitrary
+      point, so the inspector can draw the *local* exact solution through
+      whatever point the method has drifted to.
+   =========================================================================== */
+const PROBLEMS = [
+  {
+    id:'logistic', label:'Logistic growth', t0:0, T:4, y0:1,
+    f:(t,y)=> 0.9*y*(1 - y/10),
+    flow:(t0,y0,t)=> 10/(1 + (10/y0 - 1)*Math.exp(-0.9*(t-t0))),
+    ode:'<var>y</var>&prime; = 0.9&thinsp;<var>y</var>&thinsp;(1 &minus; <var>y</var>/10),&ensp;<var>y</var>(0) = 1,&ensp;0 &le; <var>t</var> &le; 4',
+    sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = 10 / (1 + 9<var>e</var><sup>&minus;0.9<var>t</var></sup>)',
+    blurb:'Growth throttled by a carrying capacity of K = 10, caught while it is still climbing. Euler\u2019s single tangent cuts straight across each bend instead of following it, so it arrives low \u2014 by a gap you can read off the axis.'
+  },
+  {
+    id:'textbook', label:'Textbook IVP', t0:0, T:2, y0:0.5,
+    f:(t,y)=> y - t*t + 1,
+    flow:(t0,y0,t)=> { const C=(y0-(t0+1)*(t0+1))*Math.exp(-t0); return (t+1)*(t+1) + C*Math.exp(t); },
+    ode:'<var>y</var>&prime; = <var>y</var> &minus; <var>t</var><sup>2</sup> + 1,&ensp;<var>y</var>(0) = 0.5,&ensp;0 &le; <var>t</var> &le; 2',
+    sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = (<var>t</var>+1)<sup>2</sup> &minus; &frac12;<var>e</var><sup><var>t</var></sup>',
+    blurb:'The worked example every numerical-analysis course runs first. Smooth, mildly growing, no traps — so the error columns show nothing but the order of each method. y(2) = 5.305471950…'
+  },
+  {
+    id:'modulated', label:'Modulated growth', t0:0, T:12, y0:1,
+    f:(t,y)=> y*Math.cos(t),
+    flow:(t0,y0,t)=> y0*Math.exp(Math.sin(t)-Math.sin(t0)),
+    ode:'<var>y</var>&prime; = <var>y</var>&thinsp;cos&thinsp;<var>t</var>,&ensp;<var>y</var>(0) = 1,&ensp;0 &le; <var>t</var> &le; 12',
+    sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = <var>e</var><sup>sin&thinsp;<var>t</var></sup>',
+    blurb:'The slope changes sign four times across the window. Error does not pile up steadily here — it breathes with the solution, shrinking on the way down and reopening on every climb.'
+  },
+  {
+    id:'decay', label:'Stiff decay', t0:0, T:2.4, y0:1,
+    f:(t,y)=> -6*y,
+    flow:(t0,y0,t)=> y0*Math.exp(-6*(t-t0)),
+    ode:'<var>y</var>&prime; = &minus;6<var>y</var>,&ensp;<var>y</var>(0) = 1,&ensp;0 &le; <var>t</var> &le; 2.4',
+    sol:'Exact: &ensp;<var>y</var>(<var>t</var>) = <var>e</var><sup>&minus;6<var>t</var></sup>',
+    blurb:'The stability test. Forward Euler stays bounded only while h < 2/6 = 0.333; widen the step past that and its answer swings above and below zero, growing, while the true solution quietly decays. RK4 survives to h ≈ 0.464.'
+  }
+];
+
+/* ===========================================================================
+   2. The methods, written as explicit Runge–Kutta tableaux.  One integrator
+      then drives all four — which is the point: they differ only in where
+      they sample the slope field and how they weight what they find.
+   =========================================================================== */
+const METHODS = [
+  {
+    id:'euler', name:'Forward Euler', short:'Euler', order:1, cvar:'--s1',
+    stages:[{c:0,a:[]}], b:[1],
+    update:'<var>y</var><sub><var>n</var>+1</sub> = <var>y</var><sub><var>n</var></sub> + <var>h</var>&thinsp;<var>k</var><sub>1</sub>',
+    desc:'One tangent, measured at the left edge of the step and carried the whole way across. Nothing is averaged, so every bend in the solution is missed by half a step&rsquo;s worth of curvature.'
+  },
+  {
+    id:'midpoint', name:'Explicit midpoint', short:'Midpoint', order:2, cvar:'--s2',
+    stages:[{c:0,a:[]},{c:0.5,a:[0.5]}], b:[0,1],
+    update:'<var>y</var><sub><var>n</var>+1</sub> = <var>y</var><sub><var>n</var></sub> + <var>h</var>&thinsp;<var>k</var><sub>2</sub>',
+    desc:'Scout half a step ahead on Euler&rsquo;s tangent, read the slope <em>there</em>, then throw the first tangent away and cross the full step on the middle slope alone.'
+  },
+  {
+    id:'heun', name:'Heun&rsquo;s method', short:'Heun', order:2, cvar:'--s3',
+    stages:[{c:0,a:[]},{c:1,a:[1]}], b:[0.5,0.5],
+    update:'<var>y</var><sub><var>n</var>+1</sub> = <var>y</var><sub><var>n</var></sub> + <var>h</var>&thinsp;(<var>k</var><sub>1</sub> + <var>k</var><sub>2</sub>)&thinsp;/&thinsp;2',
+    desc:'Take Euler&rsquo;s guess, measure the slope where it lands, and average the two. One slope leans too shallow and the other too steep by almost the same amount, so the leading error cancels.'
+  },
+  {
+    id:'rk4', name:'Classical Runge&ndash;Kutta', short:'RK4', order:4, cvar:'--s4',
+    stages:[{c:0,a:[]},{c:0.5,a:[0.5]},{c:0.5,a:[0,0.5]},{c:1,a:[0,0,1]}], b:[1/6,1/3,1/3,1/6],
+    update:'<var>y</var><sub><var>n</var>+1</sub> = <var>y</var><sub><var>n</var></sub> + <var>h</var>&thinsp;(<var>k</var><sub>1</sub> + 2<var>k</var><sub>2</sub> + 2<var>k</var><sub>3</sub> + <var>k</var><sub>4</sub>)&thinsp;/&thinsp;6',
+    desc:'Two probes at the midpoint, one at the far end, weighted 1&thinsp;:&thinsp;2&thinsp;:&thinsp;2&thinsp;:&thinsp;1 &mdash; Simpson&rsquo;s rule in disguise. Four error terms cancel instead of one.'
+  }
+];
+const M_BY_ID = Object.fromEntries(METHODS.map(m=>[m.id,m]));
+const evalsPerStep = m => m.stages.length;
+
+/* ===========================================================================
+   3. Integration
+   =========================================================================== */
+const BLOWUP = 1e12;
+
+function rkStep(f, t, y, h, m) {
+  const k = [], pts = [];
+  for (const st of m.stages) {
+    let ys = y;
+    for (let j=0; j<st.a.length; j++) ys += h*st.a[j]*k[j];
+    const ts = t + st.c*h;
+    pts.push({t:ts, y:ys, c:st.c});
+    k.push(f(ts, ys));
+  }
+  let slope = 0;
+  for (let i=0; i<k.length; i++) slope += m.b[i]*k[i];
+  return {k, pts, slope, yNext:y + h*slope};
+}
+
+function integrate(p, m, N) {
+  const h = (p.T - p.t0)/N;
+  const ts=[p.t0], ys=[p.y0], steps=[];
+  let t=p.t0, y=p.y0, diverged=false;
+  for (let n=0; n<N; n++) {
+    const s = rkStep(p.f, t, y, h, m);
+    steps.push({n, t, y, h, k:s.k, pts:s.pts, slope:s.slope, yNext:s.yNext});
+    y = s.yNext; t = p.t0 + (n+1)*h;
+    if (!isFinite(y) || Math.abs(y) > BLOWUP) { diverged = true; break; }
+    ts.push(t); ys.push(y);
+  }
+  const yEnd = ys[ys.length-1];
+  const err = diverged ? Infinity : Math.abs(yEnd - p.flow(p.t0,p.y0,p.T));
+  return {m, N, h, ts, ys, steps, diverged, yEnd, err, evals:N*evalsPerStep(m)};
+}
+
+const globalErr = (p,m,N) => integrate(p,m,N).err;
+
+/* ===========================================================================
+   4. Formatting
+   =========================================================================== */
+const SUPS = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴',
+              '5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+const supText = n => String(n).split('').map(c=>SUPS[c]||c).join('');
+
+function sciParts(x) {
+  const e = Math.floor(Math.log10(Math.abs(x)));
+  return [(x/Math.pow(10,e)).toFixed(2), e];
+}
+function sciHTML(x) {
+  if (!isFinite(x)) return 'diverges';
+  if (x === 0) return '0';
+  const [m,e] = sciParts(x);
+  return m + '&times;10<sup>' + String(e).replace('-','−') + '</sup>';
+}
+function sciText(x) {
+  if (!isFinite(x)) return '∞';
+  if (x === 0) return '0';
+  const [m,e] = sciParts(x);
+  return m + '×10' + supText(e);
+}
+function powText(e) { return '10' + supText(e); }
+const sig = (x,n=4) => {
+  if (!isFinite(x)) return '∞';
+  const a = Math.abs(x);
+  if (a !== 0 && (a < 1e-4 || a >= 1e5)) return sciText(x);
+  return Number(x.toPrecision(n)).toString();
+};
+function fmtWeight(x) {
+  if (x === 0) return '0';
+  if (x === 1) return '1';
+  if (Math.abs(x-0.5) < 1e-12) return '½';
+  if (Math.abs(x-1/3) < 1e-12) return '⅓';
+  if (Math.abs(x-1/6) < 1e-12) return '⅙';
+  if (Math.abs(x-2/3) < 1e-12) return '⅔';
+  return x.toFixed(3);
+}
+
+/* ===========================================================================
+   5. SVG plumbing
+   =========================================================================== */
+const svgEsc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const path = (pts, style, extra='') =>
+  '<path d="' + pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(2)+' '+q[1].toFixed(2)).join(' ') +
+  '" fill="none" style="' + style + '" ' + extra + '/>';
+const seg = (x1,y1,x2,y2,style,cls='') =>
+  '<line x1="'+x1.toFixed(2)+'" y1="'+y1.toFixed(2)+'" x2="'+x2.toFixed(2)+'" y2="'+y2.toFixed(2)+
+  '" class="'+cls+'" style="'+style+'"/>';
+const dot = (x,y,r,style) =>
+  '<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="'+r+'" style="'+style+'"/>';
+const txt = (x,y,s,{anchor='start', cls='', dy=0, style=''}={}) =>
+  '<text x="'+x.toFixed(1)+'" y="'+(y+dy).toFixed(1)+'" text-anchor="'+anchor+'" class="'+cls+
+  '" style="'+style+'">'+svgEsc(s)+'</text>';
+
+function arrow(x1,y1,x2,y2,style,head=6.5) {
+  const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy) || 1;
+  const ux=dx/L, uy=dy/L, px=-uy, py=ux;
+  const bx=x2-ux*head, by=y2-uy*head;
+  const p = [[x2,y2],[bx+px*head*0.42,by+py*head*0.42],[bx-px*head*0.42,by-py*head*0.42]];
+  return seg(x1,y1,x2-ux*head*0.7,y2-uy*head*0.7,style) +
+    '<polygon points="'+p.map(q=>q[0].toFixed(2)+','+q[1].toFixed(2)).join(' ')+
+    '" style="'+style.replace(/stroke:/g,'fill:').replace(/stroke-width:[^;]*;?/g,'').replace(/stroke-dasharray:[^;]*;?/g,'')+'"/>';
+}
+
+/* Direct labels: clamp into the drawable band first, then space them apart,
+   then lift the whole stack if it has run off the bottom. */
+function placeLabels(labels, top, bot, gap=13) {
+  labels.forEach(L => { L.ly = Math.min(bot, Math.max(top, L.y)); });
+  labels.sort((a,b) => a.ly - b.ly);
+  for (let i=1;i<labels.length;i++)
+    if (labels[i].ly - labels[i-1].ly < gap) labels[i].ly = labels[i-1].ly + gap;
+  const over = labels.length ? labels[labels.length-1].ly - bot : 0;
+  if (over > 0) labels.forEach(L => { L.ly = Math.max(top, L.ly - over); });
+  return labels;
+}
+/* Subscripted SVG text — tspan rather than U+208x, which many fallbacks lack. */
+function subTxt(x, y, main, sub, tail='', opts={}) {
+  return '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="'+(opts.anchor||'start')+
+    '" class="'+(opts.cls||'')+'" style="'+(opts.style||'')+'">'+svgEsc(main)+
+    '<tspan dy="3" style="font-size:8px">'+svgEsc(sub)+'</tspan>' +
+    (tail ? '<tspan dy="-3">'+svgEsc(tail)+'</tspan>' : '') + '</text>';
+}
+
+function niceTicks(lo, hi, target=6) {
+  const span = hi-lo;
+  if (!(span > 0)) return [lo];
+  const raw = span/target, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw/mag;
+  const step = (norm<1.5?1:norm<3?2:norm<7?5:10)*mag;
+  const out=[];
+  for (let v=Math.ceil(lo/step)*step; v<=hi+step*1e-9; v+=step) out.push(Math.abs(v)<step*1e-9?0:v);
+  return out;
+}
+function tickFmt(v, step) {
+  const d = Math.max(0, -Math.floor(Math.log10(step))+ (step<1?0:0));
+  return Math.abs(v)>=1e5 || (v!==0 && Math.abs(v)<1e-4) ? sciText(v) : Number(v.toFixed(Math.min(6,d))).toString();
+}
+
+/* ===========================================================================
+   6. State
+   =========================================================================== */
+const state = {
+  pid:'logistic', slider:28, equalWork:false,
+  visible:new Set(['euler','midpoint','heun','rk4']),
+  inspect:'euler', step:3, playing:false
+};
+const $ = id => document.getElementById(id);
+const CONV_NS = [4,8,16,32,64,128,256,512,1024,2048,4096];
+
+let P, runs = {}, view = {}, mainGeom = null, convGeom = null;
+
+const sliderToN = v => Math.max(4, Math.round(4*Math.pow(50, v/100)));
+const baseN = () => sliderToN(state.slider);
+const stepsFor = m => state.equalWork
+  ? Math.max(2, Math.round(baseN()/evalsPerStep(m)))
+  : baseN();
+
+function viewDomain() {
+  const n = 480, xs = [], ys = [];
+  for (let i=0;i<=n;i++) { const t = P.t0 + (P.T-P.t0)*i/n; xs.push(t); ys.push(P.flow(P.t0,P.y0,t)); }
+  const eLo = Math.min(...ys), eHi = Math.max(...ys), span = (eHi-eLo)||1;
+  const cap = 1.7*span;
+  let lo = eLo - 0.10*span, hi = eHi + 0.14*span;
+  const off = new Set();
+  for (const m of METHODS) {
+    if (!state.visible.has(m.id)) continue;
+    const r = runs[m.id];
+    if (r.diverged) off.add(m.id);
+    for (const v of r.ys) {
+      if (!isFinite(v)) { off.add(m.id); continue; }
+      if (v < eLo-cap || v > eHi+cap) { off.add(m.id); continue; }
+      lo = Math.min(lo, v - 0.04*span); hi = Math.max(hi, v + 0.04*span);
+    }
+  }
+  return {exact:{ts:xs, ys}, yD:[lo,hi], tD:[P.t0,P.T], off};
+}
+
+function recompute() {
+  P = PROBLEMS.find(p=>p.id===state.pid);
+  runs = {};
+  for (const m of METHODS) runs[m.id] = integrate(P, m, stepsFor(m));
+  view = viewDomain();
+  const r = runs[state.inspect];
+  state.step = Math.max(0, Math.min(state.step, r.steps.length-1));
+}
+
+/* ===========================================================================
+   7. The march plot
+   =========================================================================== */
+function drawMain() {
+  const well = $('mainWell'), W = Math.max(300, well.clientWidth);
+  const H = Math.round(Math.max(290, Math.min(440, W*0.60)));
+  const pad = {l:52, r:74, t:26, b:42};
+  const [t0,t1] = view.tD, [y0,y1] = view.yD;
+  const X = t => pad.l + (t-t0)/(t1-t0)*(W-pad.l-pad.r);
+  const Y = v => H-pad.b - (v-y0)/(y1-y0)*(H-pad.t-pad.b);
+  const xt = niceTicks(t0,t1,7), yt = niceTicks(y0,y1,6);
+  const xstep = xt.length>1 ? xt[1]-xt[0] : 1, ystep = yt.length>1 ? yt[1]-yt[0] : 1;
+  let s = '';
+
+  /* the step under the glass, as a band behind everything */
+  const ins = runs[state.inspect], st = ins.steps[Math.min(state.step, ins.steps.length-1)];
+  if (st) {
+    const bx = X(st.t), bw = Math.max(1.5, X(st.t+st.h)-X(st.t));
+    s += '<rect class="stepband" x="'+bx.toFixed(2)+'" y="'+pad.t+'" width="'+bw.toFixed(2)+
+         '" height="'+(H-pad.t-pad.b)+'"/>';
+  }
+  for (const v of yt) s += seg(pad.l, Y(v), W-pad.r, Y(v), '', 'grid');
+  s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
+  s += seg(pad.l, pad.t, pad.l, H-pad.b, '', 'axis');
+  for (const v of xt) {
+    s += seg(X(v), H-pad.b, X(v), H-pad.b+4, '', 'axis');
+    s += txt(X(v), H-pad.b+17, tickFmt(v,xstep), {anchor:'middle'});
+  }
+  for (const v of yt) s += txt(pad.l-8, Y(v)+3.5, tickFmt(v,ystep), {anchor:'end'});
+  s += txt(W-pad.r, H-6, 't', {anchor:'end', cls:'axis-title'});
+  s += txt(4, pad.t-9, 'y', {cls:'axis-title'});
+
+  s += '<clipPath id="mclip"><rect x="'+pad.l+'" y="'+(pad.t-2)+'" width="'+(W-pad.l-pad.r)+
+       '" height="'+(H-pad.t-pad.b+4)+'"/></clipPath><g clip-path="url(#mclip)">';
+
+  /* exact solution — ink, the reference every line is judged against */
+  s += path(view.exact.ts.map((t,i)=>[X(t),Y(view.exact.ys[i])]),
+            'stroke:var(--exact);stroke-width:2.25;stroke-linejoin:round');
+
+  const labels = [];
+  for (const m of METHODS) {
+    if (!state.visible.has(m.id)) continue;
+    const r = runs[m.id], col = 'var('+m.cvar+')';
+    const pts = r.ts.map((t,i)=>[X(t),Y(r.ys[i])]);
+    if (pts.length>1) s += path(pts, 'stroke:'+col+';stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round');
+    if (r.N <= 34) for (const q of pts)
+      s += dot(q[0], q[1], 3.1, 'fill:'+col+';stroke:var(--well);stroke-width:1.6');
+    const last = pts[pts.length-1];
+    if (last) labels.push({y:last[1], x:last[0], m, col});
+  }
+  s += '</g>';
+
+  /* exact gets a direct label too */
+  labels.push({y:Y(view.exact.ys[view.exact.ys.length-1]), x:X(t1), m:{short:'exact'}, col:'var(--exact)'});
+  placeLabels(labels, pad.t+8, H-pad.b-2);
+  for (const L of labels) {
+    const ly = L.ly;
+    s += seg(Math.min(L.x, W-pad.r)+3, Math.min(H-pad.b, Math.max(pad.t, L.y)), W-pad.r+9, ly,
+             'stroke:'+L.col+';stroke-width:1;opacity:.5');
+    s += dot(W-pad.r+11, ly, 2.6, 'fill:'+L.col);
+    s += txt(W-pad.r+16, ly+3.5, L.m.short, {cls:'end-label'});
+  }
+  s += '<g id="mxh"></g>';
+
+  const svg = $('mainPlot');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.innerHTML = s;
+  mainGeom = {W,H,pad,X,Y,t0,t1};
+}
+
+function interpAt(r, t) {
+  if (!r.ts.length) return NaN;
+  if (t <= r.ts[0]) return r.ys[0];
+  const lastT = r.ts[r.ts.length-1];
+  if (t >= lastT) return r.diverged ? NaN : r.ys[r.ys.length-1];
+  const i = Math.min(r.ts.length-2, Math.floor((t-r.ts[0])/r.h));
+  const f = (t-r.ts[i])/r.h;
+  return r.ys[i] + f*(r.ys[i+1]-r.ys[i]);
+}
+
+function mainHover(ev) {
+  if (!mainGeom) return;
+  const g = mainGeom, well = $('mainWell'), tip = $('mainTip');
+  const rect = well.getBoundingClientRect();
+  const px = (ev.clientX-rect.left) * (g.W/rect.width);
+  const py = (ev.clientY-rect.top) * (g.H/rect.height);
+  if (px < g.pad.l-4 || px > g.W-g.pad.r+4 || py < g.pad.t-6 || py > g.H-g.pad.b+6) return mainLeave();
+  const t = g.t0 + (px-g.pad.l)/(g.W-g.pad.l-g.pad.r)*(g.t1-g.t0);
+  const ye = P.flow(P.t0,P.y0,t);
+  let marks = seg(g.X(t), g.pad.t, g.X(t), g.H-g.pad.b, 'stroke:var(--ink-3);stroke-width:1;stroke-dasharray:2 3');
+  marks += dot(g.X(t), g.Y(ye), 3.4, 'fill:var(--exact);stroke:var(--well);stroke-width:1.5');
+  let rows = '<span class="tt-h">t = '+sig(t,4)+'</span>' +
+    '<div class="r" style="--c:var(--exact)"><i></i><span>exact</span><b>'+sig(ye,6)+'</b></div>';
+  for (const m of METHODS) {
+    if (!state.visible.has(m.id)) continue;
+    const v = interpAt(runs[m.id], t);
+    const col = 'var('+m.cvar+')';
+    if (isFinite(v)) marks += dot(g.X(t), g.Y(v), 3.1, 'fill:'+col+';stroke:var(--well);stroke-width:1.5');
+    rows += '<div class="r" style="--c:'+col+'"><i></i><span>'+m.short+'</span><b>'+
+      (isFinite(v) ? sig(v,6) : 'diverged') + '</b></div>';
+    if (isFinite(v)) rows += '<div class="r" style="padding-left:15px"><span>&#8722; error</span><b>'+
+      sciText(Math.abs(v-ye))+'</b></div>';
+  }
+  const xh = $('mainPlot').querySelector('#mxh');
+  if (xh) xh.innerHTML = marks;
+  tip.innerHTML = rows; tip.classList.add('on');
+  const tw = tip.offsetWidth, scale = rect.width/g.W;
+  let lx = g.X(t)*scale + 14;
+  if (lx + tw > rect.width-6) lx = g.X(t)*scale - tw - 14;
+  tip.style.left = Math.max(6,lx)+'px';
+  tip.style.top = Math.min(rect.height-tip.offsetHeight-6, Math.max(6, py*scale-20))+'px';
+}
+function mainLeave() {
+  const xh = $('mainPlot').querySelector('#mxh');
+  if (xh) xh.innerHTML = '';
+  $('mainTip').classList.remove('on');
+}
+
+/* ===========================================================================
+   8. The step under the glass — where the averaging actually happens
+   =========================================================================== */
+function drawStep() {
+  const m = M_BY_ID[state.inspect], r = runs[m.id];
+  const well = $('stepWell'), W = Math.max(280, well.clientWidth);
+  const H = Math.round(Math.max(240, Math.min(330, W*0.82)));
+  const svg = $('stepPlot');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  const st = r.steps[Math.min(state.step, r.steps.length-1)];
+  if (!st) { svg.innerHTML = txt(W/2, H/2, 'no step to show', {anchor:'middle'}); return; }
+
+  const col = 'var('+m.cvar+')';
+  const pad = {l:46, r:66, t:24, b:32};
+  const h = st.h, ta = st.t, tb = ta+h;
+  const tD = [ta-0.13*h, tb+0.22*h];
+  const arc = [];
+  for (let i=0;i<=72;i++) { const t = tD[0]+(tD[1]-tD[0])*i/72; arc.push([t, P.flow(ta, st.y, t)]); }
+  const exEnd = P.flow(ta, st.y, tb);
+  const cand = [st.y, st.yNext, exEnd].concat(st.pts.map(q=>q.y)).filter(isFinite);
+  let lo = Math.min(...cand), hi = Math.max(...cand);
+  const sp0 = (hi-lo) || Math.max(1e-9, Math.abs(st.y)*0.2) || 1;
+  for (const a of arc) {
+    if (!isFinite(a[1]) || a[1] < lo-1.5*sp0 || a[1] > hi+1.5*sp0) continue;
+    lo = Math.min(lo,a[1]); hi = Math.max(hi,a[1]);
+  }
+  const sp = (hi-lo) || sp0;
+  lo -= 0.30*sp; hi += 0.30*sp;
+  const X = t => pad.l + (t-tD[0])/(tD[1]-tD[0])*(W-pad.l-pad.r);
+  const Y = v => H-pad.b - (v-lo)/(hi-lo)*(H-pad.t-pad.b);
+  const yt = niceTicks(lo,hi,4), ystep = yt.length>1?yt[1]-yt[0]:1;
+  let s = '';
+  for (const v of yt) s += seg(pad.l, Y(v), W-pad.r, Y(v), '', 'grid');
+  for (const v of yt) s += txt(pad.l-7, Y(v)+3.5, tickFmt(v,ystep), {anchor:'end'});
+  s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
+
+  /* step boundaries */
+  for (const [t,tail] of [[ta,''],[tb,'+h']]) {
+    s += seg(X(t), pad.t-6, X(t), H-pad.b, 'stroke:var(--rule-2);stroke-width:1;stroke-dasharray:3 3');
+    s += subTxt(X(t), H-pad.b+16, 't', 'n', tail, {anchor:'middle', cls:'annot'});
+  }
+
+  /* the true solution flowing on from this point */
+  s += path(arc.filter(a=>isFinite(a[1])).map(a=>[X(a[0]),Y(a[1])]),
+            'stroke:var(--exact);stroke-width:2;stroke-linejoin:round');
+  s += txt(X(tD[1])+4, Y(arc[arc.length-1][1])+3.5, 'exact', {cls:'end-label'});
+
+  /* each probe: dashed path to where it is taken, then a fixed-length slope arrow */
+  const dirAt = (t,y,k) => {
+    const dt = (tD[1]-tD[0])/60;
+    const dx = X(t+dt)-X(t), dy = Y(y+k*dt)-Y(y), L = Math.hypot(dx,dy)||1;
+    return [dx/L, dy/L];
+  };
+  st.pts.forEach((q,i) => {
+    const k = st.k[i], [ux,uy] = dirAt(q.t,q.y,k);
+    const px = X(q.t), py = Y(q.y);
+    const faded = m.b[i] === 0;
+    const op = faded ? ';opacity:.42' : '';
+    if (q.c > 0 || Math.abs(q.y-st.y) > 1e-15)
+      s += seg(X(ta), Y(st.y), px, py, 'stroke:'+col+';stroke-width:1;stroke-dasharray:2.5 3;opacity:.55');
+    s += arrow(px-ux*11, py-uy*11, px+ux*31, py+uy*31, 'stroke:'+col+';stroke-width:1.9'+op, 6.5);
+    s += dot(px, py, 3.2, 'fill:var(--well);stroke:'+col+';stroke-width:1.7'+op);
+    const lx = px+ux*31 + 6, ly = py+uy*31 - 7;
+    s += subTxt(lx, ly, 'k', String(i+1), '', {cls:'annot', style:'fill:var(--ink-2)'});
+  });
+
+  /* the resulting move: start point, averaged slope, new point */
+  s += arrow(X(ta), Y(st.y), X(tb), Y(st.yNext), 'stroke:'+col+';stroke-width:2.6', 8);
+  s += dot(X(ta), Y(st.y), 4.2, 'fill:var(--exact);stroke:var(--well);stroke-width:1.6');
+  s += dot(X(tb), Y(exEnd), 4, 'fill:var(--exact);stroke:var(--well);stroke-width:1.6');
+  s += dot(X(tb), Y(st.yNext), 4.4, 'fill:'+col+';stroke:var(--well);stroke-width:1.8');
+
+  /* local error bracket */
+  const yA = Y(st.yNext), yB = Y(exEnd), bx = X(tb)+9, gap = Math.abs(yA-yB);
+  const le = Math.abs(st.yNext - exEnd);
+  if (gap > 3) {
+    s += seg(bx, Math.min(yA,yB), bx, Math.max(yA,yB), 'stroke:var(--ink-3);stroke-width:1');
+    s += seg(bx-3, yA, bx+3, yA, 'stroke:var(--ink-3);stroke-width:1');
+    s += seg(bx-3, yB, bx+3, yB, 'stroke:var(--ink-3);stroke-width:1');
+  }
+  const mid = (yA+yB)/2;
+  s += txt(bx+5, Math.min(H-pad.b-12, Math.max(pad.t+2, mid-3)), 'local', {cls:'annot'});
+  s += txt(bx+5, Math.min(H-pad.b-2, Math.max(pad.t+12, mid+9)), sciText(le), {cls:'annot', style:'fill:var(--ink)'});
+  svg.innerHTML = s;
+}
+
+/* ===========================================================================
+   9. Slope ledger + Butcher tableau
+   =========================================================================== */
+function renderLedger() {
+  const m = M_BY_ID[state.inspect], r = runs[m.id];
+  const st = r.steps[Math.min(state.step, r.steps.length-1)];
+  const col = 'var('+m.cvar+')';
+  let html = '<caption class="lbl">Slope ledger &mdash; step ' + (st? st.n+1 : 0) + ' of ' + r.steps.length + '</caption>' +
+    '<thead><tr><th scope="col">probe</th><th scope="col">taken at t</th><th scope="col">taken at y</th>' +
+    '<th scope="col">slope</th><th scope="col">weight</th></tr></thead><tbody>';
+  if (st) {
+    st.pts.forEach((q,i) => {
+      html += '<tr><td><span class="k-dot" style="--c:'+col+(m.b[i]===0?';opacity:.42':'')+'"></span>k<sub>'+(i+1)+'</sub></td>' +
+        '<td>'+sig(q.t,5)+'</td><td>'+sig(q.y,6)+'</td><td>'+sig(st.k[i],5)+'</td>' +
+        '<td>'+fmtWeight(m.b[i])+'</td></tr>';
+    });
+    html += '<tr class="total"><td>&#375;&prime;</td><td colspan="2" style="text-align:left;color:var(--ink-3)">weighted average</td>' +
+      '<td>'+sig(st.slope,5)+'</td><td>1</td></tr>';
+  }
+  $('ledger').innerHTML = html + '</tbody>';
+
+  /* Butcher tableau: the same numbers, in the form a paper would print them */
+  const sN = m.stages.length;
+  const tabEl = $('tableau');
+  tabEl.style.gridTemplateColumns = 'auto repeat('+sN+', auto)';
+  let tab = '';
+  m.stages.forEach(stg => {
+    tab += '<span class="c">'+fmtWeight(stg.c)+'</span>';
+    for (let j=0;j<sN;j++) tab += '<span class="a">'+(j<stg.a.length?fmtWeight(stg.a[j]):'')+'</span>';
+  });
+  tab += '<span class="c brow"><span></span></span>';
+  for (let j=0;j<sN;j++) tab += '<span class="a brow"><span>'+fmtWeight(m.b[j])+'</span></span>';
+  tabEl.innerHTML = tab;
+  $('updateLine').innerHTML = m.update +
+    (st ? '<br><span class="mono" style="color:var(--ink-3)">= ' + sig(st.y,6) + ' + ' + sig(st.h,4) +
+      '&times;' + sig(st.slope,5) + ' = <span style="color:var(--ink)">' + sig(st.yNext,6) + '</span></span>' : '');
+}
+
+/* ===========================================================================
+   10. Convergence: error against step size, or against arithmetic spent
+   =========================================================================== */
+function quickErr(p, m, N) {
+  const h = (p.T-p.t0)/N;
+  let t = p.t0, y = p.y0;
+  for (let n=0; n<N; n++) {
+    const k = [];
+    for (const stg of m.stages) {
+      let ys = y;
+      for (let j=0;j<stg.a.length;j++) ys += h*stg.a[j]*k[j];
+      k.push(p.f(t + stg.c*h, ys));
+    }
+    let sl = 0;
+    for (let i=0;i<k.length;i++) sl += m.b[i]*k[i];
+    y += h*sl; t = p.t0 + (n+1)*h;
+    if (!isFinite(y) || Math.abs(y) > BLOWUP) return Infinity;
+  }
+  return Math.abs(y - p.flow(p.t0,p.y0,p.T));
+}
+
+const FLOOR = 1e-17;
+function convData() {
+  const out = {};
+  for (const m of METHODS) out[m.id] = CONV_NS.map(N => {
+    const h = (P.T-P.t0)/N, ev = N*evalsPerStep(m);
+    return {N, h, evals:ev, e:quickErr(P,m,N), x: state.equalWork ? ev : h};
+  });
+  return out;
+}
+
+function drawConv() {
+  const data = convData();
+  const well = $('convWell'), W = Math.max(280, well.clientWidth);
+  const H = Math.round(Math.max(250, Math.min(330, W*0.72)));
+  const pad = {l:54, r:66, t:28, b:44};
+  const xs = [], es = [];
+  for (const m of METHODS) for (const q of data[m.id]) {
+    xs.push(q.x);
+    if (isFinite(q.e) && q.e > 0) es.push(q.e);
+  }
+  let xLo = Math.log10(Math.min(...xs)), xHi = Math.log10(Math.max(...xs));
+  const xPad = (xHi-xLo)*0.05; xLo -= xPad; xHi += xPad;
+  let eLo = Math.floor(Math.log10(Math.max(FLOOR, Math.min(...es))));
+  let eHi = Math.ceil(Math.log10(Math.max(...es, 1e-12)));
+  if (eHi-eLo < 3) eHi = eLo+3;
+  const X = v => pad.l + (Math.log10(v)-xLo)/(xHi-xLo)*(W-pad.l-pad.r);
+  const Y = v => H-pad.b - (Math.log10(Math.max(FLOOR,v))-eLo)/(eHi-eLo)*(H-pad.t-pad.b);
+
+  let s = '';
+  const eStep = Math.max(1, Math.ceil((eHi-eLo)/6));
+  for (let e=eLo; e<=eHi; e+=eStep) {
+    s += seg(pad.l, Y(Math.pow(10,e)), W-pad.r, Y(Math.pow(10,e)), '', 'grid');
+    s += txt(pad.l-7, Y(Math.pow(10,e))+3.5, powText(e), {anchor:'end'});
+  }
+  for (let e=Math.ceil(xLo); e<=Math.floor(xHi); e++) {
+    const xv = Math.pow(10,e);
+    s += seg(X(xv), pad.t, X(xv), H-pad.b, '', 'grid');
+    s += seg(X(xv), H-pad.b, X(xv), H-pad.b+4, '', 'axis');
+    s += txt(X(xv), H-pad.b+17, powText(e), {anchor:'middle'});
+  }
+  s += seg(pad.l, H-pad.b, W-pad.r, H-pad.b, '', 'axis');
+  s += seg(pad.l, pad.t, pad.l, H-pad.b, '', 'axis');
+  s += txt((pad.l+W-pad.r)/2, H-7, state.equalWork ? 'total f evaluations' : 'step size h',
+           {anchor:'middle', cls:'axis-title'});
+  s += txt(4, pad.t-10, 'error', {cls:'axis-title'});
+
+  const xCur = state.equalWork ? baseN() : (P.T-P.t0)/baseN();
+  if (xCur > Math.pow(10,xLo) && xCur < Math.pow(10,xHi)) {
+    s += seg(X(xCur), pad.t, X(xCur), H-pad.b, 'stroke:var(--ink-3);stroke-width:1;stroke-dasharray:4 3');
+    s += txt(X(xCur), pad.t-4, 'current', {anchor:'middle', cls:'annot'});
+  }
+
+  const labels = [], hit = [];
+  for (const m of METHODS) {
+    const col = 'var('+m.cvar+')';
+    const pts = data[m.id].filter(q=>isFinite(q.e)).map(q=>({q, x:X(q.x), y:Y(q.e)}));
+    if (!pts.length) continue;
+    const dim = state.visible.has(m.id) ? '' : ';opacity:.35';
+    s += path(pts.map(p=>[p.x,p.y]), 'stroke:'+col+';stroke-width:1.8;stroke-linejoin:round'+dim);
+    for (const p of pts) {
+      s += dot(p.x, p.y, 3.2, 'fill:'+col+';stroke:var(--well);stroke-width:1.6'+dim);
+      hit.push({x:p.x, y:p.y, m, q:p.q});
+    }
+    const last = pts.reduce((a,b)=> b.x > a.x ? b : a);
+    labels.push({y:last.y, x:last.x, m, col});
+  }
+  placeLabels(labels, pad.t+8, H-pad.b-2);
+  for (const L of labels) {
+    const ly = L.ly;
+    s += seg(L.x+3, L.y, W-pad.r+8, ly, 'stroke:'+L.col+';stroke-width:1;opacity:.5');
+    s += dot(W-pad.r+10, ly, 2.6, 'fill:'+L.col);
+    s += txt(W-pad.r+15, ly+3.5, L.m.short, {cls:'end-label'});
+  }
+  const svg = $('convPlot');
+  svg.setAttribute('viewBox','0 0 '+W+' '+H);
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.innerHTML = s + '<g id="cxh"></g>';
+  convGeom = {W,H,hit};
+  renderConvTable(data);
+}
+
+function convHover(ev) {
+  if (!convGeom) return;
+  const g = convGeom, rect = $('convWell').getBoundingClientRect(), tip = $('convTip');
+  const px = (ev.clientX-rect.left)*(g.W/rect.width), py = (ev.clientY-rect.top)*(g.H/rect.height);
+  let best = null, bd = 16;
+  for (const p of g.hit) {
+    const d = Math.hypot(p.x-px, p.y-py);
+    if (d < bd) { bd = d; best = p; }
+  }
+  const xh = $('convPlot').querySelector('#cxh');
+  if (!best) { if (xh) xh.innerHTML=''; tip.classList.remove('on'); return; }
+  if (xh) xh.innerHTML = dot(best.x, best.y, 6, 'fill:none;stroke:var('+best.m.cvar+');stroke-width:1.6');
+  tip.innerHTML = '<span class="tt-h">'+best.m.short+'</span>' +
+    '<div class="r"><span>steps</span><b>'+best.q.N+'</b></div>' +
+    '<div class="r"><span>h</span><b>'+sig(best.q.h,4)+'</b></div>' +
+    '<div class="r"><span>f evals</span><b>'+best.q.evals+'</b></div>' +
+    '<div class="r"><span>error</span><b>'+sciText(best.q.e)+'</b></div>';
+  const scale = rect.width/g.W, tw = tip.offsetWidth;
+  let lx = best.x*scale+14;
+  if (lx+tw > rect.width-6) lx = best.x*scale-tw-14;
+  tip.style.left = Math.max(6,lx)+'px';
+  tip.style.top = Math.min(rect.height-tip.offsetHeight-6, Math.max(6, best.y*scale-16))+'px';
+  tip.classList.add('on');
+}
+
+function renderConvTable(data) {
+  let html = '<thead><tr><th scope="col">steps</th><th scope="col">h</th>' +
+    METHODS.map(m=>'<th scope="col">'+m.short+'</th>').join('') + '</tr></thead><tbody>';
+  CONV_NS.forEach((N,i) => {
+    html += '<tr><td>'+N+'</td><td>'+sig((P.T-P.t0)/N,4)+'</td>' +
+      METHODS.map(m=>'<td>'+sciText(data[m.id][i].e)+'</td>').join('') + '</tr>';
+  });
+  $('convTable').innerHTML = html + '</tbody>';
+}
+
+/* ===========================================================================
+   11. Error table
+   =========================================================================== */
+function renderErr() {
+  const rows = METHODS.map(m => {
+    const r = runs[m.id];
+    const e2 = quickErr(P, m, r.N*2);
+    const p = (isFinite(r.err) && isFinite(e2) && r.err>0 && e2>0) ? Math.log2(r.err/e2) : NaN;
+    return {m, r, p};
+  });
+  const finite = rows.filter(x=>isFinite(x.r.err) && x.r.err>0).map(x=>x.r.err);
+  const hi = finite.length ? Math.max(...finite) : 1;
+  const loLog = Math.log10(1e-16), hiLog = Math.log10(Math.max(hi,1e-15));
+  const body = rows.map(({m,r,p}) => {
+    const col = 'var('+m.cvar+')';
+    const frac = isFinite(r.err) && r.err>0
+      ? Math.max(0.012, Math.min(1, (Math.log10(r.err)-loLog)/(hiLog-loLog))) : 1;
+    return '<tr class="'+(state.visible.has(m.id)?'':'off')+'">' +
+      '<td><span class="m-name"><span class="swatch" style="--c:'+col+'"></span>'+m.name+'</span></td>' +
+      '<td>'+m.order+'</td><td>'+evalsPerStep(m)+'</td><td>'+r.N+' &times; '+sig(r.h,4)+'</td>' +
+      '<td>'+sciHTML(r.err)+'</td>' +
+      '<td class="bar-cell"><span class="bar" style="--c:'+col+'"><i style="width:'+(frac*100).toFixed(1)+
+        '%'+(isFinite(r.err)?'':';opacity:.3')+'"></i></span></td>' +
+      '<td>'+(isFinite(p) ? p.toFixed(2) : '&mdash;')+'</td></tr>';
+  }).join('');
+  $('errTable').querySelector('tbody').innerHTML = body;
+
+  const eE = runs.euler.err, eR = runs.rk4.err;
+  const basis = state.equalWork ? 'for the same total arithmetic' : 'for four times the arithmetic per step';
+  let line;
+  if (!isFinite(eE)) {
+    line = 'Forward Euler has already lost the problem at <b>h = '+sig(runs.euler.h,4)+'</b> &mdash; its answer runs away to infinity, '+
+      'while RK4 finishes within <b>'+sciHTML(eR)+'</b> of the truth.';
+  } else if (isFinite(eR) && eR > 0 && eE/eR < 1) {
+    line = 'The comparison runs backwards at this setting: RK4&rsquo;s '+runs.rk4.N+' steps of <b>h = '+
+      sig(runs.rk4.h,4)+'</b> are coarse enough that Euler&rsquo;s answer is the better one, by <b>'+
+      sciHTML(eR/eE)+'</b>. Order of accuracy only pays once the step is small enough to be stable.';
+  } else if (isFinite(eR) && eR > 0) {
+    const ratio = eE/eR;
+    line = 'At <b>h = '+sig(runs.rk4.h,4)+'</b> RK4 lands <b>'+sciHTML(ratio)+
+      '</b> times closer to <var>y</var>('+sig(P.T,4)+') than Euler does, '+basis+'.';
+  } else {
+    line = 'RK4 is already at the limit of double precision here; Euler is off by <b>'+sciHTML(eE)+'</b>.';
+  }
+  $('ratioLine').innerHTML = line;
+  $('errCap').innerHTML = 'Measured <var>p</var> is log<sub>2</sub> of the error ratio between this step size and half of it &mdash; ' +
+    'the order each method is actually achieving, not the order its theory promises.';
+}
+
+/* ===========================================================================
+   12. Chrome: chips, legend, tabs, captions
+   =========================================================================== */
+function renderChrome() {
+  $('problemChips').innerHTML = PROBLEMS.map(p =>
+    '<button class="chip" type="button" data-pid="'+p.id+'" aria-pressed="'+(p.id===state.pid)+'">'+p.label+'</button>'
+  ).join('');
+  $('odeLine').innerHTML = P.ode;
+  $('solLine').innerHTML = P.sol;
+  $('problemBlurb').textContent = P.blurb;
+
+  const N = baseN(), span = P.T-P.t0;
+  $('stepsReadout').innerHTML = 'h = '+sig(span/N,4)+' &middot; '+N+' steps';
+
+  $('legend').innerHTML = METHODS.map(m => {
+    const r = runs[m.id], on = state.visible.has(m.id);
+    const off = view.off.has(m.id);
+    return '<button class="series-btn" type="button" data-mid="'+m.id+'" aria-pressed="'+on+'" style="--c:var('+m.cvar+')">' +
+      '<span class="swatch" style="--c:var('+m.cvar+')"></span><span class="stack">' +
+      '<span class="nm">'+m.short+'</span><span class="meta">h='+sig(r.h,3)+' &middot; '+r.evals+' f evals</span>' +
+      '</span></button>' + (on && off ?
+      '<span class="warn-chip" style="--c:var('+m.cvar+')">'+(r.diverged?'diverges':'off frame')+'</span>' : '');
+  }).join('') +
+  '<button class="series-btn" type="button" disabled aria-pressed="true" style="--c:var(--exact);cursor:default">' +
+  '<span class="swatch" style="--c:var(--exact)"></span><span class="stack"><span class="nm">exact</span>' +
+  '<span class="meta">closed form</span></span></button>';
+
+  $('mainNote').innerHTML = state.equalWork
+    ? 'Every method spends about ' + N + ' <var>f</var> evaluations'
+    : 'Every method takes the same step <var>h</var> = ' + sig(span/N,4);
+  $('mainCap').innerHTML = 'The ink curve is the closed-form solution. Each coloured polyline is what a method actually computes &mdash; ' +
+    'dots are the points it lands on; between them it knows nothing. Hover for values at any <var>t</var>.';
+
+  $('inspTabs').innerHTML = METHODS.map(m =>
+    '<button class="tab" type="button" data-mid="'+m.id+'" aria-pressed="'+(m.id===state.inspect)+
+    '" style="--c:var('+m.cvar+')">'+m.short+'</button>').join('');
+  const im = M_BY_ID[state.inspect], ir = runs[state.inspect];
+  $('inspDesc').innerHTML = im.desc;
+  const sr = $('stepRange');
+  sr.max = Math.max(0, ir.steps.length-1);
+  sr.value = state.step;
+  const st = ir.steps[state.step];
+  $('stepReadout').innerHTML = st
+    ? 'step '+(st.n+1)+' of '+ir.steps.length+' &middot; t: '+sig(st.t,4)+' &rarr; '+sig(st.t+st.h,4)
+    : '&mdash;';
+
+  $('convTitle').textContent = state.equalWork ? 'Accuracy per unit of work' : 'Order of accuracy';
+  $('convNote').innerHTML = state.equalWork
+    ? 'Log&ndash;log: error against <var>f</var> evaluations'
+    : 'Log&ndash;log: error against <var>h</var>';
+  $('convCap').innerHTML = state.equalWork
+    ? 'Cost, not step size, on the horizontal axis &mdash; so this is the fair comparison: for any arithmetic budget, ' +
+      'read off which method gets closest. RK4 pays 4&times; per step and still wins by orders of magnitude.'
+    : 'On log&ndash;log axes a method of order <var>p</var> plots as a straight line of slope <var>p</var>: ' +
+      'Euler drops one decade per decade, the averaged pair two, RK4 four. The dashed line marks the current setting.';
+}
+
+/* ===========================================================================
+   13. Wiring
+   =========================================================================== */
+function render() { recompute(); renderChrome(); drawMain(); drawStep(); renderLedger(); renderErr(); drawConv(); }
+
+$('problemChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-pid]');
+  if (!b) return;
+  state.pid = b.dataset.pid; state.step = Math.min(state.step, 3); render();
+});
+$('legend').addEventListener('click', e => {
+  const b = e.target.closest('[data-mid]');
+  if (!b) return;
+  const id = b.dataset.mid;
+  if (state.visible.has(id)) { if (state.visible.size > 1) state.visible.delete(id); }
+  else state.visible.add(id);
+  render();
+});
+$('inspTabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-mid]');
+  if (!b) return;
+  state.inspect = b.dataset.mid;
+  state.visible.add(state.inspect);
+  render();
+});
+$('stepsRange').addEventListener('input', e => { state.slider = +e.target.value; render(); });
+$('stepRange').addEventListener('input', e => { state.step = +e.target.value; renderChrome(); drawMain(); drawStep(); renderLedger(); });
+$('equalWork').addEventListener('change', e => { state.equalWork = e.target.checked; render(); });
+
+let timer = null;
+$('playBtn').addEventListener('click', () => {
+  state.playing = !state.playing;
+  const b = $('playBtn');
+  b.setAttribute('aria-pressed', String(state.playing));
+  b.innerHTML = state.playing ? 'Pause &#9998;' : 'March &#9654;';
+  if (timer) { clearInterval(timer); timer = null; }
+  if (state.playing) timer = setInterval(() => {
+    const n = runs[state.inspect].steps.length;
+    state.step = (state.step+1) % n;
+    renderChrome(); drawMain(); drawStep(); renderLedger();
+  }, 780);
+});
+
+const well = $('mainWell');
+well.addEventListener('pointermove', mainHover);
+well.addEventListener('pointerleave', mainLeave);
+$('convWell').addEventListener('pointermove', convHover);
+$('convWell').addEventListener('pointerleave', () => {
+  const xh = $('convPlot').querySelector('#cxh');
+  if (xh) xh.innerHTML = '';
+  $('convTip').classList.remove('on');
+});
+
+let rt = null;
+new ResizeObserver(() => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { drawMain(); drawStep(); drawConv(); }, 90);
+}).observe($('mainWell'));
+
+$('stepsRange').value = state.slider;
+render();
+document.fonts && document.fonts.ready.then(() => { drawMain(); drawStep(); drawConv(); });
+</script>
