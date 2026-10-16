@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-title" content="DEEPFIN">
+<meta name="theme-color" content="#0f1720">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Build a Classifier Without Training Data</title>
+<style>
+  :root { --bg:#f7f9fb; --fg:#1b2430; --muted:#5b6675; --card:#fff; --line:#dde3ea;
+          --perc:#c2410c; --ocel:#1d4ed8; --ok:#15803d; --bad:#b91c1c; --panel:#0b1118; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1720; --fg:#e6edf3; --muted:#9aa7b4; --card:#17212c; --line:#2a3644;
+            --perc:#fb923c; --ocel:#60a5fa; --ok:#4ade80; --bad:#f87171; }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  html { touch-action:manipulation; }  /* no double-tap zoom on the exhibit iPad */
+  body { margin:0; background:var(--bg); color:var(--fg); font:18px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:16px 16px 0; }
+  h1 { font-size:2.4rem; line-height:1.15; margin:8px 0 12px; }
+  h2 { font-size:1.7rem; line-height:1.2; margin:8px 0 8px; }
+  h3 { font-size:1.25rem; margin:0 0 8px; }
+  p { margin:8px 0; }
+  .muted { color:var(--muted); }
+  .kicker { font-weight:650; color:var(--muted); margin:16px 0 0; }
+  a { color:var(--ocel); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:16px; }
+  .row { display:flex; gap:12px; margin-top:14px; flex-wrap:wrap; }
+  button, .btn { flex:1 1 160px; font:inherit; font-weight:650; min-height:56px; padding:12px 16px; border-radius:12px;
+                 cursor:pointer; border:2px solid currentColor; background:transparent; color:var(--fg);
+                 text-align:center; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+                 -webkit-user-select:none; user-select:none; }
+  button:disabled { opacity:.45; cursor:default; }
+  .go { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  .site { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+  .site a { font-size:.85rem; font-weight:600; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; text-decoration:none; color:var(--fg); }
+  .site a[aria-current="page"] { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+
+  /* bottom bar: back and forth through the steps */
+  .steps { position:sticky; bottom:0; display:flex; align-items:center; gap:12px; margin-top:24px; padding:12px 0 16px;
+           background:var(--bg); border-top:1px solid var(--line); }
+  .steps button { flex:1 1 0; min-height:52px; }
+  .dots { display:flex; gap:8px; flex:0 0 auto; }
+  .dots i { width:12px; height:12px; border-radius:50%; background:var(--line); }
+  .dots i.on { background:var(--fg); }
+
+  /* 0: intro */
+  .hero { display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:center; margin:16px 0 8px; }
+  .hero figure { margin:0; text-align:center; font-weight:650; }
+  .hero img { width:100%; aspect-ratio:3/2; object-fit:cover; border-radius:14px; display:block; margin-bottom:6px; }
+  .hero .vs { font-size:1.6rem; font-weight:800; color:var(--muted); }
+
+  /* 1: pick a fish */
+  .pick { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-top:16px; }
+  @media (max-width:700px) { .pick { grid-template-columns:repeat(2, 1fr); } }
+  .pick button { flex-direction:column; padding:10px; gap:8px; border-width:3px; opacity:.75; }
+  .pick button[aria-pressed="true"] { opacity:1; box-shadow:0 0 0 4px var(--fg); }
+  .pick img { width:100%; aspect-ratio:3/2; border-radius:8px; background:#fff; object-fit:contain; }
+  .pick button.wild img { object-fit:cover; }
+
+  /* 2: through the network */
+  .pipe { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:14px 18px; margin-top:16px; }
+  .stage { position:relative; text-align:center; font-size:.85rem; line-height:1.3; animation:pop .5s both; animation-delay:calc(var(--i) * .5s); }
+  .stage:not(:last-child)::after { content:"›"; position:absolute; right:-15px; top:36px; font-size:1.8rem; color:var(--muted); }
+  .stage canvas { image-rendering:pixelated; }
+  .stage img, .stage canvas, .stage .box { width:100%; aspect-ratio:1; border-radius:8px; display:block; background:var(--panel); object-fit:contain; }
+  .stage .box { display:flex; align-items:center; justify-content:center; color:#e6edf3; font-weight:700; font-size:1rem; padding:6px; }
+  .stage b { display:block; margin-top:6px; font-size:.95rem; }
+  @keyframes pop { from { opacity:0; transform:translateY(12px) scale(.94); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .stage { animation:none; } }
+
+  /* 3: the answer */
+  .answer { display:grid; grid-template-columns:minmax(140px, 200px) 1fr; gap:18px; align-items:center; }
+  .answer img { width:100%; border-radius:10px; background:#fff; }
+  .bar { margin:10px 0; }
+  .bar div { height:22px; border-radius:6px; background:var(--fg); min-width:4px; transition:width 1s ease-out; }
+  .twins { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:10px; }
+  .twins img { width:100%; height:150px; object-fit:cover; border-radius:8px; display:block; }
+  @media (max-width:600px) { .answer { grid-template-columns:1fr; } }
+
+  /* 4: fingerprints */
+  .fp { display:grid; grid-template-columns:150px 1fr; gap:12px; align-items:center; margin:8px 0; }
+  .fp canvas { width:100%; height:40px; border-radius:6px; display:block; image-rendering:pixelated; }
+  .fp.me canvas { outline:3px solid var(--fg); outline-offset:2px; }
+  .fp span { font-size:.9rem; font-weight:650; }
+  @media (max-width:600px) { .fp { grid-template-columns:1fr; gap:2px; } }
+
+  .fmap { position:relative; width:100%; aspect-ratio:1.75/1; margin-top:14px; background:#fff; border-radius:10px; border:1px solid var(--line); }
+  .fmap img { position:absolute; width:11%; transform:translate(-50%, -50%); border:2px solid; border-radius:3px; background:#fff; }
+  .fmap img.me { z-index:2; outline:3px solid var(--fg); outline-offset:2px; }
+
+  /* 5: build a classifier */
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; min-width:0; min-height:52px; padding:8px 6px; font-size:.95rem; border-width:2px; border-color:var(--line); }
+  .seg button[aria-pressed="true"], .objs button[aria-pressed="true"] { border-color:var(--fg); background:var(--fg); color:var(--bg); }
+  .play { display:grid; grid-template-columns:minmax(260px, 330px) 1fr; gap:18px; align-items:start; margin-top:12px; }
+  .objs { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:12px; }
+  @media (max-width:900px) { .play { grid-template-columns:1fr; } .objs { grid-template-columns:repeat(6, 1fr); } }
+  @media (max-width:700px) { .objs { grid-template-columns:repeat(4, 1fr); } }
+  .objs button { flex-direction:column; min-height:76px; padding:6px 4px; font-size:.8rem; font-weight:600; gap:2px; border-width:2px; border-color:var(--line); }
+  .objs button span { font-size:2rem; line-height:1.1; }
+  .plot { position:relative; width:100%; aspect-ratio:1.25/1; background:#fff; border-radius:10px; border:1px solid var(--line); }
+  .plot.dark { background:var(--panel); }
+  .plot img { position:absolute; width:var(--w, 10%); transform:translate(-50%, -50%); border:2px solid; border-radius:3px; background:#fff;
+              transition:left 1s cubic-bezier(.5,0,.2,1), top 1s cubic-bezier(.5,0,.2,1); }
+  .plot.dark img { background:#000; }
+  .plot .ax { position:absolute; z-index:2; font-size:.95rem; font-weight:650; color:#5b6675; background:rgba(255,255,255,.85); padding:0 6px; border-radius:6px; }
+  .plot.dark .ax { color:#cde2fb; background:rgba(11,17,24,.85); }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:.85rem; margin-top:8px; color:var(--muted); }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:-1px; margin-right:4px; }
+  .score { font-size:1.1rem; font-weight:700; margin:8px 0 0; min-height:3em; }
+  @media (prefers-reduced-motion: reduce) { .plot img { transition:none; } }
+  /* home-screen exhibit app: outside links become plain text (credits stay visible, nobody leaves the app) */
+  @media (display-mode: standalone) { a[href^="http"] { pointer-events:none; color:inherit; text-decoration:none; } }
+</style>
+</head>
+<body>
+<main>
+  <nav class="site" aria-label="DEEPFIN activities"><a href="index.html">🏠 Home</a><a href="spot_the_species.html">Species</a>
+    <a href="stages.html">Stages</a><a href="how_ai_sees.html" aria-current="page">Classifier</a></nav>
+
+  <section class="screen" id="s0">
+    <p class="kicker">How does an AI see a fish?</p>
+    <h1>Build a classifier without training data</h1>
+    <div class="hero" id="hero"></div>
+    <p style="font-size:1.2rem">Computers don't see pictures. They see numbers. Follow one clownfish photo through a real
+      neural network that has never seen these two species, and find out how it can still tell them apart, for example
+      by checking… how much each fish looks like a bicycle?</p>
+    <div class="row"><button class="go" data-go="1">Start →</button></div>
+  </section>
+
+  <section class="screen" id="s1" hidden>
+    <h2>Pick a fish</h2>
+    <p class="muted">Two lab photos of each species, and one wild photo of each from iNaturalist.</p>
+    <div class="pick" id="pick"></div>
+  </section>
+
+  <section class="screen" id="s2" hidden>
+    <h2>Into the network</h2>
+    <p>To a computer your photo is a grid of 224 × 224 dots, each with three colour numbers: <b>150,528 numbers</b>.
+      The network (MobileNetV2) passes them through dozens of layers. Each layer looks for patterns in the layer before.
+      Here are a few of the patterns it found in your fish, from bright (strong) to dark (absent):</p>
+    <div class="pipe" id="pipe"></div>
+    <p class="muted">Early layers see small details on a fine grid. Deeper layers see bigger patterns on a coarser grid,
+      until the whole fish is summed up in 1,280 numbers, and then scored against 1,000 everyday things.</p>
+    <div class="row"><button type="button" id="replay">↻ Play again</button></div>
+  </section>
+
+  <section class="screen" id="s3" hidden>
+    <h2>The network's answer</h2>
+    <div class="answer"><img id="ansImg" alt="Your fish"><div id="bars"></div></div>
+    <p>The network learned from over a million photos of 1,000 everyday things: dogs, cars, pizza… and “anemone fish”,
+      which is another name for clownfish.</p>
+    <div class="card">
+      <h3>But it has never heard of Ocellaris or Percula.</h3>
+      <p>Both wild fish get the same answer:</p>
+      <div class="twins" id="twins"></div>
+      <p class="muted" id="labfact"></p>
+    </div>
+  </section>
+
+  <section class="screen" id="s4" hidden>
+    <h2>A step back from the answer: the fingerprint</h2>
+    <p>The final answer is no help: both species are just “anemone fish”. But just before it answers, the network sums
+      up the photo in <b>1,280 numbers</b>, a kind of fingerprint. It never learned our two species, yet fingerprints
+      of the same species look alike.</p>
+    <div class="card" id="fps"></div>
+    <p class="muted">Each thin stripe is one number, from low (dark) to high (bright). We lined the numbers up so the ones
+      that differ most between the two species sit at opposite ends.</p>
+    <p>This is what DEEPFIN uses. It puts the fingerprints of all the fish on a map without being told which species is
+      which, and the two species land in separate groups.</p>
+    <div class="row"><button type="button" id="mapBtn"></button></div>
+    <div id="fmap" hidden>
+      <div class="fmap" id="fmapPlot"></div>
+      <div class="legend"><span><i style="background:var(--ocel)"></i>Ocellaris</span><span><i style="background:var(--perc)"></i>Percula</span>
+        <span>outlined: your fish</span></div>
+      <p class="muted">Each photo sits where DEEPFIN placed it, using only the 1,280-number fingerprints (MobileNetV2).
+        The coloured borders show the species, which we added afterwards to check its work.</p>
+    </div>
+  </section>
+
+  <section class="screen" id="s5" hidden>
+    <h2>Your turn: build a classifier, no training needed</h2>
+    <p>The network also gives every photo a score for each of the 1,000 things it knows: how much it looks like a bicycle,
+      a penguin, a wig… Pick <b>two</b> of these scores. Every fish moves to a spot: how much it looks like the first
+      (left → right) and the second (bottom → top).</p>
+    <div class="play">
+      <div>
+        <div class="seg" id="sets" role="group" aria-label="Which fish to sort">
+          <button type="button" data-set="species">Ocellaris vs Percula</button>
+          <button type="button" data-set="stages">Growth stages 2–7</button></div>
+        <p class="muted" id="goal"></p>
+        <p class="score" id="score" aria-live="polite"></p>
+        <div class="objs" id="objs"></div>
+        <p class="muted" id="best"></p>
+        <p class="muted" id="deepfin"></p>
+      </div>
+      <div><div class="plot" id="plot"></div><div class="legend" id="legend"></div></div>
+    </div>
+  </section>
+
+  <nav class="steps" aria-label="Steps">
+    <button type="button" id="back">← Back</button>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <button type="button" class="go" id="next"></button>
+  </nav>
+</main>
+<script src="ai_eye/data.js"></script>  <!-- window.AIE, from site_build/make_exhibit_data.py -->
+<script src="spot_species/data.js"></script>  <!-- window.SPOT: DEEPFIN's species maps, from site_build/spot_species_data.py -->
+<script>
+const D = AIE, $ = id => document.getElementById(id);
+const screens = [...document.querySelectorAll('.screen')];
+const TITLES = ['Start', 'Pick a fish', 'Into the network', "The network's answer", 'The fingerprint', 'Build a classifier'];
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COL = { Percula: 'var(--perc)', Ocellaris: 'var(--ocel)' };
+// ordinal blue ramp for stages 2 -> 7, the same as the stages page (validated on the dark panel)
+const STAGE = ['#184f95', '#256abf', '#3987e5', '#6da7ec', '#9ec5f4', '#cde2fb'];
+const RAMP = [[13, 8, 135], [126, 3, 168], [204, 71, 120], [248, 149, 64], [240, 249, 33]];  // same as the feature maps
+let fish = D.demo[0], cur = 0;
+
+$('dots').innerHTML = screens.map(() => '<i></i>').join('');
+function go(n) {
+  cur = Math.max(0, Math.min(n, screens.length - 1));
+  screens.forEach((s, i) => s.hidden = i !== cur);
+  [...$('dots').children].forEach((d, i) => d.classList.toggle('on', i <= cur));
+  $('back').disabled = cur === 0;
+  $('next').textContent = cur === screens.length - 1 ? '↺ Start over' : `${cur ? 'Next' : 'Start'}: ${TITLES[cur + 1]} →`;
+  scrollTo(0, 0);
+  ({ 1: markPick, 2: pipeline, 3: answer, 4: fingerprints, 5: () => playground() })[cur]?.();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(+b.dataset.go); });
+$('back').onclick = () => go(cur - 1);
+$('next').onclick = () => go(cur === screens.length - 1 ? 0 : cur + 1);
+
+// exhibit iPad (home-screen app only): back to the home page after 2 minutes without a touch
+if (matchMedia('(display-mode: standalone)').matches) {
+  let idle; const wake = () => { clearTimeout(idle); idle = setTimeout(() => location.href = 'index.html', 120000); };
+  ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, wake)); wake();
+}
+
+function paint(canvas, codes, cols) {  // one pixel per fingerprint number: a strip (cols = all) or a grid
+  const v = codes.match(/../g).map(Number), ctx = canvas.getContext('2d');
+  cols = cols || v.length;
+  canvas.width = cols; canvas.height = Math.ceil(v.length / cols);
+  const img = ctx.createImageData(canvas.width, canvas.height);
+  v.forEach((x, k) => {
+    const t = x / 99 * (RAMP.length - 1), lo = Math.min(Math.floor(t), RAMP.length - 2), f = t - lo;
+    for (let c = 0; c < 3; c++) img.data[4 * k + c] = RAMP[lo][c] * (1 - f) + RAMP[lo + 1][c] * f;
+    img.data[4 * k + 3] = 255;
+  });
+  ctx.putImageData(img, 0, 0);
+}
+const label = d => `${d.species} · ${d.wild ? 'wild photo' : 'lab photo'}`;
+
+// 0 and 1: intro and pick a fish
+const wild = D.demo.filter(d => d.wild);
+$('hero').innerHTML = wild.map(d => `<figure><img src="${d.img}" alt="Wild ${d.species} clownfish">
+  <span style="color:${COL[d.species]}">${d.species}</span></figure>`).join('<span class="vs">vs.</span>');
+const order = D.demo.map((d, k) => [d, k]).sort(([a], [b]) => a.species.localeCompare(b.species) || a.wild - b.wild);
+$('pick').innerHTML = order.map(([d, k]) =>
+  `<button type="button" class="${d.wild ? 'wild' : ''}" data-k="${k}" style="border-color:${COL[d.species]}">
+     <img src="${d.img}" alt="${label(d)}"><span>${label(d)}</span></button>`).join('');
+const markPick = () => $('pick').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', D.demo[+b.dataset.k] === fish));
+$('pick').onclick = e => { const b = e.target.closest('[data-k]'); if (b) { fish = D.demo[+b.dataset.k]; go(2); } };
+
+// 2: through the network
+function pipeline() {
+  const stages = [`<div class="stage" style="--i:0"><img src="${fish.img}" alt="Your fish"><b>Your photo</b>224 × 224 dots</div>`]
+    .concat(D.layers.map((l, k) => {
+      const [h, w, ch] = l.shape.split('×');
+      return `<div class="stage" style="--i:${k + 1}"><img src="${fish.maps[k]}" alt="Patterns found at layer ${k + 1}">
+        <b>${l.caption}</b>${h} × ${w} grid · ${ch} patterns</div>`;
+    }))
+    .concat(`<div class="stage" style="--i:6"><canvas id="miniFp"></canvas><b>1,280 numbers</b>the fingerprint</div>`,
+            `<div class="stage" style="--i:7"><div class="box">${fish.top[0][0]}?</div><b>1,000 scores</b>the answer</div>`);
+  $('pipe').innerHTML = stages.join('');
+  paint($('miniFp'), fish.fp, 32);  // 32 x 40 grid
+}
+$('replay').onclick = pipeline;
+
+// 3: the answer
+function answer() {
+  $('ansImg').src = fish.img;
+  $('bars').innerHTML = fish.top.map(([n, p]) =>
+    `<div class="bar"><b>${n}</b> ${Math.round(p * 100)}%<div style="width:0" data-w="${p * 100}%"></div></div>`).join('');
+  setTimeout(() => $('bars').querySelectorAll('[data-w]').forEach(b => b.style.width = b.dataset.w), 60);
+  $('twins').innerHTML = wild.map(d =>
+    `<figure style="margin:0"><img src="${d.img}" alt="Wild ${d.species}"><figcaption><b style="color:${COL[d.species]}">${d.species}</b>:
+      “${d.top[0][0]}” ${Math.round(d.top[0][1] * 100)}%</figcaption></figure>`).join('');
+  $('labfact').textContent = `Our lab photos, on plain white, confused it more: it called ${D.top1_anemone} of the ${D.n_fish} fish
+    an “anemone fish” and ${D.top1_hairslide} of them a “hair slide”.`;
+}
+
+// 4: fingerprints of the four lab demo fish (plus yours, if you picked a wild photo)
+// DEEPFIN's map of the 68 fish, shown in place under the fingerprints (same map as the species page)
+const MAP_LABEL = "See DEEPFIN's map of all 68 fish ↓";
+$('mapBtn').onclick = () => {
+  const show = $('fmap').hidden;
+  if (show) {
+    const xy = SPOT.models.MobileNetV2.xy;
+    $('fmapPlot').innerHTML = Object.entries(xy).map(([id, [x, y]]) =>
+      `<img src="spot_species/${id}_t.jpg" alt="${SPOT.fish[id]}" class="${id === fish.id ? 'me' : ''}"
+        style="left:${7 + 86 * x}%;top:${8 + 84 * (1 - y)}%;border-color:${COL[SPOT.fish[id]]}">`).join('');
+  }
+  $('fmap').hidden = !show;
+  $('mapBtn').textContent = show ? 'Hide the map ↑' : MAP_LABEL;
+  if (show) $('mapBtn').scrollIntoView({ block: 'start' });  // jump: the Hide button on top, the whole map below
+};
+
+function fingerprints() {
+  $('fmap').hidden = true; $('mapBtn').textContent = MAP_LABEL;
+  const lab = D.demo.filter(d => !d.wild).sort((x, y) => x.species.localeCompare(y.species));
+  const list = fish.wild ? [fish, ...lab] : lab;
+  $('fps').innerHTML = list.map((d, k) => `<div class="fp ${d === fish ? 'me' : ''}"><span style="color:${COL[d.species]}">
+    ${d.species}${d === fish ? ' (your fish)' : ''}${d.wild ? ', wild' : ''}</span><canvas id="fp${k}"></canvas></div>`).join('');
+  list.forEach((d, k) => paint($('fp' + k), d.fp));
+}
+
+// 5: build a classifier from two of the 1,000 scores, for the species or for the growth stages
+const SETS = {
+  species: { picked: [0, 2], best: null, color: l => COL[l], w: '10%', group: 'own species',
+             goal: 'Goal: put each species in its own corner. (Psst: the bicycle won\'t help. We checked.)' },
+  stages: { picked: [0, 5], best: null, color: l => STAGE[l - 2], w: '7%', group: 'own stage', dark: true,
+            goal: `Goal: sort the babies by age. Fun fact: the network calls ${D.top1_puffer} of these ${D.n_stage_fish} a “pufferfish”.` },
+};
+let set = 'species';
+$('sets').onclick = e => { const b = e.target.closest('[data-set]'); if (b) playground(b.dataset.set); };
+$('objs').onclick = e => {
+  const b = e.target.closest('[data-o]'), S = SETS[set]; if (!b || S.picked.includes(+b.dataset.o)) return;
+  S.picked = [S.picked[1], +b.dataset.o];  // the newest two
+  playground();
+};
+function playground(which) {
+  const fresh = which && which !== set || !$('plot').children.length;
+  if (which) set = which;
+  const S = SETS[set], data = D.sets[set], [a, b] = S.picked, A = data.objects[a], B = data.objects[b];
+  $('sets').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.set === set));
+  if (fresh) {  // build the buttons and the fish for this set
+    $('goal').textContent = S.goal;
+    $('objs').innerHTML = data.objects.map((o, k) => `<button type="button" data-o="${k}"><span>${o.emoji}</span>${o.name}</button>`).join('');
+    $('plot').className = 'plot' + (S.dark ? ' dark' : '');
+    $('plot').style.setProperty('--w', S.w);
+    $('plot').innerHTML = '<span class="ax" id="axX" style="right:10px;bottom:6px"></span><span class="ax" id="axY" style="left:10px;top:6px"></span>' +
+      data.fish.map(([id, l]) => `<img src="${data.thumb.replace('%s', id)}" alt="${set === 'stages' ? 'Stage ' + l : l}"
+        style="left:50%;top:50%;border-color:${S.color(l)}">`).join('');
+    $('legend').innerHTML = set === 'stages'
+      ? STAGE.map((c, k) => `<span><i style="background:${c}"></i>Stage ${k + 2}</span>`).join('')
+      : Object.entries(COL).map(([s, c]) => `<span><i style="background:${c}"></i>${s}</span>`).join('');
+    $('deepfin').textContent = `DEEPFIN, using all 1,280 fingerprint numbers instead of two scores: ${data.deepfin} of ${data.n}.`;
+  }
+  $('objs').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', S.picked.includes(+x.dataset.o)));
+  $('axX').textContent = `more like a ${A.emoji} ${A.name} →`;
+  $('axY').textContent = `↑ more like a ${B.emoji} ${B.name}`;
+  const pts = data.fish.map(([, l, r]) => [r[a], r[b], l]);
+  const imgs = [...$('plot').querySelectorAll('img')];  // these fish, even if the set is switched before the timer fires
+  setTimeout(() => imgs.forEach((im, k) => {
+    im.style.left = `${6 + 88 * pts[k][0]}%`; im.style.top = `${8 + 84 * (1 - pts[k][1])}%`;
+  }), fresh ? 60 : 0);
+  // fish with at least 3 of their 5 nearest neighbours on this plot in the same group (same rule as make_exhibit_data.py)
+  const good = pts.filter((p, i) => pts.map((q, j) => [(p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2, j]).filter(([, j]) => j !== i)
+    .sort((x, y) => x[0] - y[0]).slice(0, 5).filter(([, j]) => pts[j][2] === p[2]).length >= 3).length;
+  const top = data.best.n;
+  $('score').innerHTML = `${good} of ${data.n} fish sit among their ${S.group}. ` +
+    (good >= top ? '🏆 That\'s the best pair there is!' : good >= .8 * top ? '👍 Close to the best pair. Keep going!' : '🤔 Mixed up. Try another pair!');
+  if (!S.best || good > S.best.good) S.best = { good, label: `${A.emoji} + ${B.emoji}` };
+  $('best').textContent = `Your best so far: ${S.best.good} of ${data.n} with ${S.best.label}. The best possible pair: ${top}.`;
+}
+
+go(0);
+</script>
+<script>  // offline cache for the exhibit iPad (see site_build/make_offline.py); only on the published https site,
+  // so local previews always show the latest edits
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>

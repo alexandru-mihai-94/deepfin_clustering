@@ -1,0 +1,15 @@
+{
+  "name": "DEEPFIN: How an AI Sorts Clownfish",
+  "short_name": "DEEPFIN",
+  "description": "Interactive exhibit: tell two clownfish species apart, stage baby clownfish, and build a classifier without training data.",
+  "start_url": "index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1720",
+  "theme_color": "#0f1720",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

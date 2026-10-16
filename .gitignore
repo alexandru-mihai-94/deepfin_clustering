@@ -16,3 +16,10 @@ venv*/
 venv*/
 .env*/
 .venv*/
+# ─ Website (docs/) ─
+# full-size photographs used to build the site stay local; the pages only need the small images exported into docs/
+docs/percula_ocellaris/originals_all/
+docs/percula_ocellaris/originals_ppt/
+docs/percula_ocellaris/processed_rembg_v3/
+docs/percula_ocellaris/README.md
+site_build/cache/

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DEEPFIN">
+<meta name="theme-color" content="#0f1720">
+<title>DEEPFIN: How an AI Sorts Clownfish</title>
+<style>
+  :root { --bg:#f7f9fb; --fg:#1b2430; --muted:#5b6675; --card:#fff; --line:#dde3ea; --perc:#c2410c; --ocel:#1d4ed8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1720; --fg:#e6edf3; --muted:#9aa7b4; --card:#17212c; --line:#2a3644; --perc:#fb923c; --ocel:#60a5fa; }
+  }
+  * { box-sizing:border-box; }
+  html { touch-action:manipulation; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:18px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 40px; }
+  h1 { font-size:2.4rem; line-height:1.15; margin:8px 0 8px; }
+  .muted { color:var(--muted); }
+  a { color:var(--ocel); }
+  .acts { display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-top:24px; }
+  @media (max-width:860px) { .acts { grid-template-columns:1fr; } }
+  .act { display:flex; flex-direction:column; background:var(--card); border:2px solid var(--line); border-radius:16px;
+         overflow:hidden; color:var(--fg); text-decoration:none; -webkit-user-select:none; user-select:none; }
+  .act:active, .act:hover { border-color:var(--fg); }
+  .pics { display:grid; grid-template-columns:1fr 1fr; gap:4px; aspect-ratio:2/1; }
+  .pics img { width:100%; height:100%; object-fit:contain; display:block; }
+  .pics.white { background:#fff; } .pics.black { background:#000; }
+  .pics.one { grid-template-columns:1fr; background:#0b1118; }
+  .pics.one img { height:auto; aspect-ratio:2/1; object-fit:cover; image-rendering:pixelated; }
+  .act div.txt { padding:16px 18px 20px; display:flex; flex-direction:column; gap:6px; flex:1; }
+  .act b { font-size:1.35rem; line-height:1.2; }
+  .act span.go { margin-top:auto; padding-top:10px; font-weight:700; }
+  /* home-screen exhibit app: outside links become plain text (nobody leaves the app) */
+  @media (display-mode: standalone) { a[href^="http"] { pointer-events:none; color:inherit; text-decoration:none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>DEEPFIN: how an AI sorts clownfish</h1>
+  <p class="muted" style="font-size:1.15rem">DEEPFIN is an AI that sorts photos of fish without ever being told what is in them.
+    Pick where to start:</p>
+  <div class="acts">
+    <a class="act" href="spot_the_species.html">
+      <div class="pics white"><img src="spot_species/ocellaris_sample_14.jpg" alt="An Ocellaris clownfish"><img src="spot_species/percula_sample_20.jpg" alt="A Percula clownfish"></div>
+      <div class="txt"><b>Can you beat DEEPFIN?</b>
+        <span class="muted">Two look-alike clownfish species. Can you tell <i>Percula</i> from <i>Ocellaris</i> better than the AI?</span>
+        <span class="go">Play the species quiz →</span></div></a>
+    <a class="act" href="stages.html">
+      <div class="pics black"><img src="stages/C1_28_D2_L2.jpg" alt="A newly hatched clownfish larva"><img src="stages/C2_28_Final_L9.jpg" alt="A juvenile clownfish"></div>
+      <div class="txt"><b>Staging <i>Amphiprion ocellaris</i></b>
+        <span class="muted">Baby clownfish grow through seven stages. Can you stage them, and can you do it faster than the AI?</span>
+        <span class="go">Play the staging quiz →</span></div></a>
+    <a class="act" href="how_ai_sees.html">
+      <div class="pics one"><img src="ai_eye/ocellaris_sample_03_block_2_add.png" alt="Patterns a neural network found in a clownfish photo"></div>
+      <div class="txt"><b>Build a classifier without training data</b>
+        <span class="muted">Follow a photo through a real neural network, then build your own fish classifier from its scores.</span>
+        <span class="go">Start →</span></div></a>
+  </div>
+  <p class="muted" style="margin-top:28px">From the study <a href="https://doi.org/10.1016/j.isci.2026.117234">DEEPFIN, iScience (2026)</a>.</p>
+</main>
+<script>  // offline cache for the exhibit iPad (see site_build/make_offline.py); only on the published https site,
+  // so local previews always show the latest edits
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>
