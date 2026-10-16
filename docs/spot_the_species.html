@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="DEEPFIN">
+<meta name="theme-color" content="#0f1720">
+<title>You vs. DEEPFIN: Name That Clownfish</title>
+<style>
+  :root { --bg:#f7f9fb; --fg:#1b2430; --muted:#5b6675; --card:#fff; --line:#dde3ea;
+          --perc:#c2410c; --ocel:#1d4ed8; --ok:#15803d; --bad:#b91c1c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1720; --fg:#e6edf3; --muted:#9aa7b4; --card:#17212c; --line:#2a3644;
+            --perc:#fb923c; --ocel:#60a5fa; --ok:#4ade80; --bad:#f87171; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display:none !important; }
+  a { color:var(--ocel); }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.8rem; margin:0 0 4px; }
+  .muted { color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .fish { width:100%; aspect-ratio:2.2/1; object-fit:contain; background:#fff; border-radius:8px; display:block; }
+  .row { display:flex; gap:12px; margin-top:12px; }
+  button { flex:1; font:inherit; font-weight:600; padding:12px; border-radius:8px; cursor:pointer;
+           border:2px solid currentColor; background:transparent; }
+  button.p { color:var(--perc); } button.o { color:var(--ocel); }
+  button.next { color:var(--fg); }
+  button:disabled { opacity:.5; cursor:default; }
+  .top { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .top a { font-size:.85rem; font-weight:600; padding:6px 12px; border:1.5px solid var(--line); border-radius:999px; text-decoration:none; color:var(--fg); }
+  .top a:hover { border-color:var(--fg); }
+  .top a[aria-current="page"] { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  .top.bottom { justify-content:center; margin:28px 0 8px; }
+  .seg { display:flex; gap:8px; margin:8px 0 4px; }
+  .seg button { flex:1; min-width:0; padding:10px 4px; color:var(--fg); font-size:clamp(.75rem, 3vw, 1rem); }
+  .seg button[aria-pressed="true"] { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+  .ok { color:var(--ok); } .bad { color:var(--bad); }
+  .wild { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+  .wild p { grid-column:1/-1; margin:0; }
+  .wild figure { margin:0; }
+  .wild img { width:100%; height:auto; border-radius:6px; display:block; }
+  .wild figcaption { font-size:.75rem; line-height:1.35; margin-top:4px; }
+  .score { display:flex; justify-content:space-between; font-weight:600; }
+  .map { position:relative; width:100%; aspect-ratio:1.5/1; margin-top:12px; background:#fff; border-radius:8px; }
+  .map img { position:absolute; width:12%; transform:translate(-50%,-50%); border-radius:3px; border:2px solid; background:#fff; }
+  .map img.q { outline:2px solid var(--fg); outline-offset:1px; }
+  .map img:hover { z-index:2; transform:translate(-50%,-50%) scale(2.5); }
+  .legend span { font-weight:600; }
+  /* home-screen exhibit app: outside links become plain text (credits stay visible, nobody leaves the app) */
+  @media (display-mode: standalone) { a[href^="http"] { pointer-events:none; color:inherit; text-decoration:none; } }
+</style>
+</head>
+<body>
+<main>
+  <nav class="top" aria-label="DEEPFIN activities"><a href="index.html">🏠 Home</a><a href="spot_the_species.html" aria-current="page">Species</a><a href="stages.html">Stages</a><a href="how_ai_sees.html">Classifier</a><a href="#map">Skip to the map</a></nav>
+  <h1 id="heading">You vs. DEEPFIN: name that clownfish</h1>
+  <p class="muted" id="intro"> Nemo comes in many shapes and colors, <b>A. Ocellaris</b> and <b>A. Percula</b> are two sister clownfish species that can be difficult to identify.
+    Given the two wild type examples can you name the species?</p>
+
+  <div class="card" id="game">
+    <div class="wild" id="wild"></div>
+    <div class="score"><span id="round"></span><span id="you"></span></div>
+    <img class="fish" id="pic" alt="Photo of a clownfish, viewed from the side">
+    <div class="row">
+      <button class="o" data-pick="Ocellaris">Ocellaris</button>
+      <button class="p" data-pick="Percula">Percula</button>
+    </div>
+    <p id="verdict" aria-live="polite"></p>
+    <div class="row"><button class="next" id="next" hidden>Next fish →</button></div>
+  </div>
+
+  <div class="card" id="end" hidden>
+    <h2 id="final"></h2>
+    <p>DEEPFIN was <b>never told</b> which fish is which. It looked at photos of 68 clownfish, one per fish,
+      and sorted them into groups on its own. Below is its map: each photo sits where DEEPFIN placed it, and
+      similar-looking fish end up close together. The coloured borders show the experts' labels, which we only added afterwards.</p>
+    <p>DEEPFIN can read the photos with different neural networks, and each draws its own map. Pick one:</p>
+    <div class="seg" id="model" role="group" aria-label="Neural network"></div>
+    <p class="muted" id="acc"></p>
+    <p class="legend"><span style="color:var(--ocel)">■ Ocellaris</span> &nbsp; <span style="color:var(--perc)">■ Percula</span>
+      <span class="muted">· outlined: the 10 quiz fish · hover or tap a photo to enlarge</span></p>
+    <div class="map" id="umap"></div>
+    <p><b>The tell?</b> Experts count the spines on the back fin and look at how thick the black outlines are.
+      These two sister species split about 5 million years ago and can still interbreed, so even trained eyes hesitate.</p>
+    <p>DEEPFIN also sorts baby clownfish into their growth stages, with no labels needed, which could save scientists
+      weeks of work on thousands of images.
+      <a href="https://doi.org/10.1016/j.isci.2026.117234">Read the paper in iScience</a> ·
+      <a href="https://github.com/alexandru-mihai-94/deepfin_clustering">Code on GitHub</a></p>
+    <div class="row"><button class="next" onclick="location.href = 'stages.html'">Next: guess the growth stage of baby clownfish →</button></div>
+    <div class="row"><button class="next" onclick="location.href = location.pathname">Play again</button></div>
+  </div>
+  <nav class="top bottom" aria-label="DEEPFIN activities"><a href="index.html">🏠 Home</a><a href="spot_the_species.html" aria-current="page">Species</a><a href="stages.html">Stages</a><a href="how_ai_sees.html">Classifier</a></nav>
+</main>
+<script src="spot_species/data.js"></script>  <!-- window.SPOT, from site_build/spot_species_data.py -->
+<script>
+const P = 'Percula';
+const MODELS = Object.keys(SPOT.models);
+const QUIZ = [...SPOT.quiz].sort(() => Math.random() - .5);
+let r = 0, you = 0, played = true;
+const $ = id => document.getElementById(id);
+const btns = document.querySelectorAll('[data-pick]');
+
+$('wild').innerHTML = '<p class="muted">First, here is what each species looks like in the wild:</p>' + SPOT.wild.map(w =>
+  `<figure><img src="spot_species/${w.img}" alt="Wild ${w.species} clownfish">
+    <figcaption><b style="color:var(--${w.species === P ? 'perc' : 'ocel'})">${w.species}</b> · ${w.place}<br>
+    <span class="muted">Photo: <a href="${w.url}">${w.credit} / iNaturalist</a>, ${w.license}</span></figcaption></figure>`).join('');
+
+function show() {
+  $('round').textContent = `Fish ${r + 1} of ${QUIZ.length}`;
+  $('you').textContent = `You: ${you}`;
+  $('pic').src = `spot_species/${QUIZ[r]}.jpg`;
+  $('verdict').textContent = '';
+  $('next').hidden = true;
+  btns.forEach(b => b.disabled = false);
+}
+btns.forEach(b => b.onclick = () => {
+  const id = QUIZ[r], truth = SPOT.fish[id], right = b.dataset.pick === truth;
+  const votes = MODELS.filter(m => SPOT.models[m].group[id] === truth).length;
+  you += right;
+  btns.forEach(b => b.disabled = true);
+  $('you').textContent = `You: ${you}`;
+  $('verdict').innerHTML = `<span class="${right ? 'ok' : 'bad'}">${right ? 'Correct!' : 'Not quite.'}</span>
+    This is <b>${truth}</b>. DEEPFIN got it right with <b>${votes} of ${MODELS.length}</b> networks.`;
+  $('next').hidden = false;
+  $('next').focus();
+});
+$('next').onclick = () => ++r < QUIZ.length ? show() : finish();
+
+function draw(m) {
+  const M = SPOT.models[m];
+  const ai = QUIZ.filter(id => M.group[id] === SPOT.fish[id]).length;
+  $('final').textContent = played ? `You: ${you}/${QUIZ.length} · DEEPFIN (${m}): ${ai}/${QUIZ.length}`
+                                  : `DEEPFIN (${m}) gets ${ai} of the ${QUIZ.length} look-alike quiz fish right`;
+  [...$('model').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
+  $('acc').textContent = `With ${m}, DEEPFIN's two groups match the species for ${Math.round(M.accuracy * 100)}% of all 68 fish.`;
+  $('umap').innerHTML = Object.entries(M.xy).map(([id, [x, y]]) =>
+    `<img src="spot_species/${id}_t.jpg" alt="${SPOT.fish[id]}" title="${SPOT.fish[id]}" class="${QUIZ.includes(id) ? 'q' : ''}"
+      style="left:${7 + 86 * x}%;top:${8 + 84 * (1 - y)}%;border-color:var(--${SPOT.fish[id] === P ? 'perc' : 'ocel'})">`).join('');
+}
+
+function finish() {
+  $('game').hidden = $('intro').hidden = true;
+  $('heading').textContent = 'How the AI tells them apart'; $('end').hidden = false;
+  $('model').innerHTML = MODELS.map(m => `<button type="button" data-m="${m}">${m}</button>`).join('');
+  $('model').onclick = e => e.target.dataset.m && draw(e.target.dataset.m);
+  draw(MODELS[0]);
+}
+addEventListener('hashchange', () => location.reload());  // nav links to #map on this same page
+if (location.hash === '#map') { played = false; finish(); }  // skip the quiz: straight to DEEPFIN's map
+else show();
+</script>
+<script>  // exhibit iPad (home-screen app only): back to the home page after 2 minutes without a touch
+if (matchMedia('(display-mode: standalone)').matches) {
+  let idle; const wake = () => { clearTimeout(idle); idle = setTimeout(() => location.href = 'index.html', 120000); };
+  ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, wake)); wake();
+}
+</script>
+<script>  // offline cache for the exhibit iPad (see site_build/make_offline.py); only on the published https site,
+  // so local previews always show the latest edits
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>

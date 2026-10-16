@@ -1,6 +1,5 @@
 # DEEPFIN – Unsupervised Clustering of Fish Images
 
-<!-- ❗ TODO replace the src with your PNG once it's in figures/ -->
 <p align="center"><img src="docs/pipeline_overview.png" width="90%"></p>
 
 
@@ -17,6 +16,14 @@ The approach is data-source agnostic and was validated on both novel anemone fis
 ### Interactive demo of closely related anemone fish images
 
 [Live interactive scatter plot](https://alexandru-mihai-94.github.io/deepfin_clustering/scatter_test.html)
+
+### Interactive exhibit: how an AI sorts clownfish
+
+[Open the exhibit](https://alexandru-mihai-94.github.io/deepfin_clustering/): three touch-friendly activities built
+from the study's data. Tell *A. percula* from *A. ocellaris*, stage baby *A. ocellaris*, and build a classifier
+without training data. It also runs offline as a home-screen app on an iPad, for science exhibits.
+The pages are in `docs/`; the data behind them is made by the scripts in [`site_build/`](site_build/README.md).
+
 ---
 
 ## Citation
@@ -61,4 +68,12 @@ pip install -e .           # editable install of the deepfin package
 # minimal demo (uses 3–5 sample images)
 python -m deepfin.pipeline run_demo sample_images
 open results/umap_demo.png   # or any image viewer
+```
 
+## Images
+
+The code in this repository is MIT-licensed; the photographs are not. The clownfish images in `docs/` are research
+images from the DEEPFIN study: please ask before reusing them. The two wild photographs
+(`docs/spot_species/wild_*_raw.jpg`) are from iNaturalist under CC BY-NC, by
+[uwkwaj](https://www.inaturalist.org/observations/254417945) and
+[Frank Krasovec](https://www.inaturalist.org/observations/282414654), and are credited where they appear.
