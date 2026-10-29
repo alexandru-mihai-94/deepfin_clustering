@@ -14,6 +14,7 @@ built; they do not run from a fresh clone.
 | `stage_demo_umap.py` | the three maps inside `docs/stages.html` | `DATA/rembg_FishImages/`, the 144 fish listed in `stages.html` |
 | `make_exhibit_data.py` | `docs/ai_eye/`: the classifier page (feature maps, ImageNet scores, fingerprints) | all of the above |
 | `make_offline.py` | `docs/sw.js`: the offline cache for the iPad app | every file the pages use |
+| `make_standalone.py` | `../deepfin_exhibit_standalone/`: the exhibit as one HTML file (site look, and a white OIST-coloured version) plus `images/`, for embedding elsewhere | `docs/` |
 
 Made once by hand and not by a script: the stage images in `docs/stages/` (cropped to the fish from
 `DATA/rembg_FishImages`, 240 px thumbnails and 1200 px quiz images) and the placeholder app icons in `docs/icons/`
