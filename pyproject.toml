@@ -8,7 +8,22 @@ version = "0.1.0"
 description = "Unsupervised clustering pipeline for fish images"
 authors = [{ name = "Alexandru Mihai" }]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
+# what `pip install` needs for the app and the command line (requirements.txt adds the notebook / demo extras)
+dependencies = [
+  "tensorflow>=2.16",
+  "scikit-learn>=1.3",   # includes HDBSCAN
+  "umap-learn>=0.5",
+  "scipy>=1.18",         # older builds fail to load on recent macOS
+  "matplotlib>=3.7",
+  "pillow>=9",
+  "rembg>=2.0",          # optional background removal
+  "onnxruntime>=1.16",
+]
+
+[project.scripts]
+deepfin = "deepfin.explore:main"         # command line: deepfin <folder> [options]
+deepfin-gui = "deepfin.gui:main"         # point-and-click app
 
 [tool.setuptools.package-dir]
 "" = "src"
