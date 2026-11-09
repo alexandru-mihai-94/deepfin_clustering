@@ -11,7 +11,7 @@ for %%V in (3.12 3.13) do (
   if not defined PY py -%%V -c "import tkinter" >nul 2>nul && set "PY=py -%%V"
 )
 if not defined PY (
-  echo DEEPFIN needs Python 3.12 ^(or 3.13^) from https://www.python.org/downloads/
+  echo DEEPFIN needs Python 3.13.17 from https://www.python.org/downloads/release/python-31317/ ^(TensorFlow does not support newer versions yet^).
   echo Install it, then double-click this file again.
   pause
   exit /b 1
