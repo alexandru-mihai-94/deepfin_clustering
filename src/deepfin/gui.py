@@ -43,7 +43,7 @@ class App:
         self.v = dict(folder=V(""), remove_bg=V(False, tk.BooleanVar), model=V(f"MobileNetV2: {NOTES['MobileNetV2']}"),
                       reduce=V("umap"), dims=V(2, tk.IntVar), n_neighbors=V(15, tk.IntVar), min_dist=V(0.1, tk.DoubleVar),
                       seed=V(24, tk.IntVar), cluster=V("hdbscan"), min_cluster_size=V(5, tk.IntVar),
-                      min_samples=V(0, tk.IntVar), k=V(2, tk.IntVar), out=V(""),
+                      min_samples=V(0, tk.IntVar), k=V(2, tk.IntVar), out=V(""), thumb=V(1.0, tk.DoubleVar),
                       **{key: V(True, tk.BooleanVar) for key, _ in SAVE})
 
         s1 = ttk.LabelFrame(f, text="1. Images", padding=(8, 4)); s1.grid(sticky="ew", pady=2); s1.columnconfigure(0, weight=1)
@@ -99,6 +99,12 @@ class App:
 
         right = ttk.Frame(root, padding=(0, 10, 14, 10))
         right.grid(row=0, column=1, sticky="nsew")
+        size = ttk.Frame(right); size.pack(side="top", fill="x")
+        ttk.Label(size, text="Thumbnail size").pack(side="left")
+        ttk.Scale(size, from_=0.5, to=3, variable=self.v["thumb"], length=220,
+                  command=lambda _: self.thumb_changed()).pack(side="left", padx=8)
+        self.thumb_label = ttk.Label(size, text="100%", width=5); self.thumb_label.pack(side="left")
+        self.redraw_job = None
         self.fig = Figure(figsize=(7, 6), layout="constrained")
         self.canvas = FigureCanvasTkAgg(self.fig, master=right)
         NavigationToolbar2Tk(self.canvas, right, pack_toolbar=False).pack(side="bottom", fill="x")  # zoom and pan
@@ -195,7 +201,7 @@ class App:
 
     def poll(self):
         from tkinter import messagebox
-        from .explore import draw_map, summary, title_for
+        from .explore import summary
         while not self.q.empty():
             kind, value = self.q.get()
             if kind == "log":
@@ -203,14 +209,27 @@ class App:
                 continue
             if kind == "done":
                 self.result = r = value
-                draw_map(self.fig, r["emb"], r["labels"], r["feat"]["thumbs"], title_for(r["settings"]), r["variance"])
-                self.canvas.draw_idle()
+                self.redraw()
                 self.say("Map ready: " + summary(r["labels"]) + ". Not separated well? Change the settings and press "
                          "Make the map again.")
             else:
                 self.say("Problem: " + value); messagebox.showerror("DEEPFIN", value)
             self.busy(False)
         self.root.after(100, self.poll)
+
+    def thumb_changed(self):
+        self.thumb_label.config(text=f"{self.v['thumb'].get():.0%}")
+        if self.redraw_job:  # redraw once the slider stops, not at every step of a drag
+            self.root.after_cancel(self.redraw_job)
+        self.redraw_job = self.root.after(250, self.redraw)
+
+    def redraw(self):
+        from .explore import draw_map, title_for
+        self.redraw_job, r = None, self.result
+        if r:
+            draw_map(self.fig, r["emb"], r["labels"], r["feat"]["thumbs"], title_for(r["settings"]), r["variance"],
+                     thumb_scale=self.v["thumb"].get())
+            self.canvas.draw_idle()
 
     def save(self):
         from tkinter import messagebox
