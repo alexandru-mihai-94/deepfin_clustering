@@ -31,6 +31,7 @@ IMAGE_TYPES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".webp"}
 # the three networks of the exhibit first: they separated Percula/Ocellaris best (deepfin_clustering/docs)
 MODELS = ["MobileNetV2", "VGG16", "DenseNet121", "ResNet50", "EfficientNetB0", "InceptionV3", "EfficientNetV2L"]
 NOISE_GREY = "#9aa0a6"
+THUMB_PX = 192  # stored thumbnail size: sharp up to about 2.5x the default display size
 
 
 def find_images(folder) -> list[Path]:
@@ -77,7 +78,7 @@ def load_images(paths, remove_background=False, log=print):
 
 
 def fingerprint(paths, model="MobileNetV2", remove_background=False, log=print):
-    """Steps 1-2: (paths, 96-pixel thumbnails as arrays, fingerprints: one row of numbers per image)."""
+    """Steps 1-2: (paths, THUMB_PX-pixel thumbnails as arrays, fingerprints: one row of numbers per image)."""
     import contextlib, sys
     import numpy as np
     if model not in MODELS:
@@ -102,7 +103,7 @@ def fingerprint(paths, model="MobileNetV2", remove_background=False, log=print):
         X = extract(images, model, tag="images")
     thumbs = []
     for im in images:
-        im.thumbnail((96, 96))
+        im.thumbnail((THUMB_PX, THUMB_PX))
         thumbs.append(np.asarray(im))
     return paths, thumbs, X
 
@@ -158,9 +159,9 @@ def title_for(s) -> str:
     return f"{s['model']} · {s['reduce'].upper()} {dims} · {groups}"
 
 
-def draw_map(fig, emb, labels, thumbs, title, variance=None, max_thumbs=200):
+def draw_map(fig, emb, labels, thumbs, title, variance=None, max_thumbs=200, thumb_scale=1.0):
     """Draw the first two dimensions on matplotlib Figure `fig`, a thumbnail per image (up to max_thumbs) framed in
-    its group's colour; for PCA, the axes show each component's share of the variance and a bar chart below shows
+    its group's colour (thumb_scale enlarges or shrinks them); for PCA, the axes show each component's share of the variance and a bar chart below shows
     the first 10 components."""
     import numpy as np
     from matplotlib import colormaps
@@ -189,11 +190,12 @@ def draw_map(fig, emb, labels, thumbs, title, variance=None, max_thumbs=200):
         ax.scatter(emb[m, 0], emb[m, 1], s=18, color=color[c],
                    label=f"{'no group' if c < 0 else f'group {c}'} ({int(m.sum())})")
     show = np.random.default_rng(0).permutation(len(emb))[:max_thumbs]
-    zoom = min(0.6, 0.5 * fig.get_figwidth() / np.sqrt(len(show)))  # ponytail: fewer images, bigger thumbnails
+    points = thumb_scale * min(58, 48 * fig.get_figwidth() / np.sqrt(len(show)))  # ponytail: fewer images, bigger thumbnails
+    zoom = points / THUMB_PX
     for i in show:
         ax.add_artist(AnnotationBbox(OffsetImage(thumbs[i], zoom=zoom), emb[i, :2], frameon=True, pad=0.05,
                                      bboxprops=dict(edgecolor=color[int(labels[i])], lw=2)))
-    ax.margins(0.08)  # room for the thumbnails at the edges
+    ax.margins(min(0.25, 0.08 * thumb_scale))  # room for the thumbnails at the edges
     ax.set_xticks([]); ax.set_yticks([])
     ax.set_title(title)
     ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1), fontsize=9, frameon=False)  # beside the map, not over it

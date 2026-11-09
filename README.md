@@ -40,7 +40,7 @@ and it shows the images on a map, sorted into groups.
    5–10 minutes with an internet connection. Later starts open the app straight away.
 
 Press **Make the map**: the map appears to the right of the settings, with a thumbnail of every image framed in the
-colour of its group (the toolbar under it zooms and pans). If the groups don't separate well, change the settings and
+colour of its group (the slider above it sets the thumbnail size; the toolbar under it zooms and pans). If the groups don't separate well, change the settings and
 press **Make the map** again. A different network (step 2) recomputes everything; changes to step 3 or 4 only keep
 the fingerprints, so the new map takes seconds.
 
