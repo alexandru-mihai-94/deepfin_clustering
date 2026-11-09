@@ -32,7 +32,7 @@ DEEPFIN comes with a point-and-click app. You choose **a folder of images**, **a
 image into a fingerprint of numbers, **a map method** (UMAP or PCA) and **a grouping method** (HDBSCAN or k-means),
 and it sorts the images into groups.
 
-1. Install **Python 3.12** from [python.org](https://www.python.org/downloads/release/python-31317/) (3.13 also works; older versions do not; and newer versions do not support Tensorflow yet).
+1. Install **Python 3.12** from [[python.org](https://www.python.org/downloads/release/python-31317/)](https://www.python.org/downloads/release/python-31317/) (3.13 also works; older versions do not; and newer versions do not support Tensorflow yet).
    On Windows, tick *"Add python.exe to PATH"* in the installer.
 2. Download this repository: green **Code** button → **Download ZIP**, then unzip it.
 3. Open the `launchers` folder and double-click **`DEEPFIN-mac.command`** (macOS; the first time, right-click → *Open*)
