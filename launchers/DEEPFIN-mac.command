@@ -4,16 +4,17 @@
 # about 1.5 GB and 5-10 minutes, with an internet connection. Later starts open the app straight away.
 cd "$(dirname "$0")" || exit 1
 ENV="$PWD/venv"
+NEWEST=13  # newest Python 3.x that TensorFlow has builds for: raise it when pypi.org/project/tensorflow/#files lists cp314
 if [ ! -x "$ENV/bin/deepfin-gui" ]; then
   PY=""
-  for p in python3.12 python3.13 python3; do  # needs 3.12 or 3.13 with Tkinter (python.org has both)
+  for p in python3.12 python3.13 python3.14 python3.15 python3.16 python3; do  # needs 3.12 to 3.$NEWEST with Tkinter (python.org has both)
     if command -v "$p" >/dev/null 2>&1 &&
-       "$p" -c 'import sys, tkinter; sys.exit(not (3, 12) <= sys.version_info[:2] <= (3, 13))' 2>/dev/null; then
+       "$p" -c "import sys, tkinter; sys.exit(not (3, 12) <= sys.version_info[:2] <= (3, $NEWEST))" 2>/dev/null; then
       PY="$p"; break
     fi
   done
   if [ -z "$PY" ]; then
-    echo "DEEPFIN needs Python 3.12 (or 3.13) from https://www.python.org/downloads/"
+    echo "DEEPFIN needs Python 3.12 to 3.$NEWEST from https://www.python.org/downloads/ (TensorFlow does not support newer versions yet)."
     read -r -p "Install it, then double-click this file again. Press Enter to close." _; exit 1
   fi
   SRC=".."  # this repository; or straight from GitHub if this file was downloaded on its own
