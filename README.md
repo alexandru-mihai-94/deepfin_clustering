@@ -30,21 +30,29 @@ The pages are in `docs/`; the data behind them is made by the scripts in [`site_
 
 DEEPFIN comes with a point-and-click app. You choose **a folder of images**, **a neural network** that turns each
 image into a fingerprint of numbers, **a map method** (UMAP or PCA) and **a grouping method** (HDBSCAN or k-means),
-and it sorts the images into groups.
+and it shows the images on a map, sorted into groups.
 
-1. Install **Python 3.12** from [[python.org](https://www.python.org/downloads/release/python-31317/)](https://www.python.org/downloads/release/python-31317/) (3.13 also works; older versions do not; and newer versions do not support Tensorflow yet).
+1. Install **Python 3.13.17** from [python.org](https://www.python.org/downloads/release/python-31317/) (3.12 also works; older versions do not, and newer versions are not supported by TensorFlow yet).
    On Windows, tick *"Add python.exe to PATH"* in the installer.
 2. Download this repository: green **Code** button → **Download ZIP**, then unzip it.
 3. Open the `launchers` folder and double-click **`DEEPFIN-mac.command`** (macOS; the first time, right-click → *Open*)
    or **`DEEPFIN-windows.bat`** (Windows). The first start installs everything it needs, about 1.5 GB and
    5–10 minutes with an internet connection. Later starts open the app straight away.
 
-The app saves its results next to your image folder, in `<folder>_deepfin`:
+Press **Make the map**: the map appears to the right of the settings, with a thumbnail of every image framed in the
+colour of its group (the toolbar under it zooms and pans). If the groups don't separate well, change the settings and
+press **Make the map** again. A different network (step 2) recomputes everything; changes to step 3 or 4 only keep
+the fingerprints, so the new map takes seconds.
 
-- `map.png`: every image on the 2-D map, framed in the colour of its group
-- `clusters.csv`: one row per image with its group and map position (opens in Excel)
+When the map looks right, step 5 saves what you tick, by default next to your image folder in `<folder>_deepfin`:
+
+- `map.png` and `map.pdf`: the map as shown; with PCA, the axes give each component's share of the variance and a bar
+  chart shows the first 10 components
+- `features.csv`: the raw fingerprints, one row of numbers per image
+- `clusters.csv`: one row per image with its group and its coordinates in every dimension (opens in Excel); with PCA
+  also `pca_variance.csv`
 - `sorted/`: a copy of every image in one folder per group
-- `settings.json`: the choices you made, to repeat the run later
+- `settings.json` (always): the choices you made, to repeat the run later
 
 **Choosing the settings**
 
@@ -53,6 +61,7 @@ The app saves its results next to your image folder, in `<folder>_deepfin`:
 | Network | MobileNetV2 (default), VGG16, DenseNet121, … | MobileNetV2 is fast and was among the best at separating our clownfish species; try VGG16 or DenseNet121 to compare |
 | Map | UMAP (default) | Usually separates groups best. *Neighbours*: smaller finds finer, local groups. *Min. distance*: smaller packs groups tighter |
 | Map | PCA | Fast and always gives the same map; good for a first look |
+| Map | Dimensions (default 2) | Groups are found using all the dimensions; the map shows the first two. 5–10 keep more of each fingerprint and can separate groups that overlap on a flat map |
 | Groups | HDBSCAN (default) | Finds the number of groups itself and leaves odd images out (*no group*). Raise *smallest group* for fewer, bigger groups |
 | Groups | k-means | When you know how many groups to expect, e.g. 2 species: set *number of groups* |
 | Images | Remove backgrounds | One object per photo on a busy background; slower |
@@ -61,11 +70,12 @@ The app saves its results next to your image folder, in `<folder>_deepfin`:
 
 ```bash
 pip install "deepfin @ https://github.com/alexandru-mihai-94/deepfin_clustering/archive/refs/heads/main.zip"
-deepfin my_images --model VGG16 --reduce umap --n-neighbors 15 --min-dist 0.1 --cluster kmeans -k 2
+deepfin my_images --model VGG16 --reduce umap --dims 2 --n-neighbors 15 --min-dist 0.1 --cluster kmeans -k 2
 deepfin-gui        # opens the app
 ```
 
-Or from Python: `from deepfin.explore import run; run("my_images", model="DenseNet121", reduce="pca", cluster="hdbscan")`.
+Or from Python: `from deepfin.explore import run; run("my_images", model="DenseNet121", reduce="pca", dims=5, cluster="hdbscan")`;
+the steps are also separate functions (`fingerprint`, `embed`, `group`, `draw_map`, `save`, see `src/deepfin/explore.py`).
 
 ---
 
