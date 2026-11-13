@@ -33,6 +33,9 @@ image into a fingerprint of numbers, **a map method** (UMAP or PCA) and **a grou
 and it shows the images on a map, sorted into groups.
 
 1. Install **Python 3.13.17** from [python.org](https://www.python.org/downloads/release/python-31317/) (3.12 also works; older versions do not, and newer versions are not supported by TensorFlow yet).
+   **Intel Mac** (Apple menu → About This Mac shows an Intel processor): install
+   [Python 3.12.10](https://www.python.org/downloads/release/python-31210/) instead; TensorFlow stopped supporting
+   Intel Macs after its version 2.16, which runs on Python 3.12 at most.
    On Windows, tick *"Add python.exe to PATH"* in the installer.
 2. Download this repository: green **Code** button → **Download ZIP**, then unzip it.
 3. Open the `launchers` folder and double-click **`DEEPFIN-mac.command`** (macOS; the first time, right-click → *Open*)
