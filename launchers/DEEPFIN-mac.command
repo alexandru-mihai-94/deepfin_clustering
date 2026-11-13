@@ -1,5 +1,6 @@
 #!/bin/bash
-# DEEPFIN app for macOS: double-click to start (the first time: right-click > Open).
+# DEEPFIN app for macOS: double-click to start. The first time, macOS blocks it (downloaded, unsigned): click Done,
+# then System Settings > Privacy & Security > Open Anyway. Or: xattr -dr com.apple.quarantine <the unzipped folder>
 # The first start installs DEEPFIN and its libraries into launchers/venv next to this file:
 # about 1.5 GB and 5-10 minutes, with an internet connection. Later starts open the app straight away.
 cd "$(dirname "$0")" || exit 1
