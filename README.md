@@ -32,15 +32,22 @@ DEEPFIN comes with a point-and-click app. You choose **a folder of images**, **a
 image into a fingerprint of numbers, **a map method** (UMAP or PCA) and **a grouping method** (HDBSCAN or k-means),
 and it shows the images on a map, sorted into groups.
 
+On a Mac it needs macOS 11 (Big Sur) or newer with an Intel processor, macOS 12 or newer with an Apple chip.
+
 1. Install **Python 3.13.17** from [python.org](https://www.python.org/downloads/release/python-31317/) (3.12 also works; older versions do not, and newer versions are not supported by TensorFlow yet).
    **Intel Mac** (Apple menu → About This Mac shows an Intel processor): install
    [Python 3.12.10](https://www.python.org/downloads/release/python-31210/) instead; TensorFlow stopped supporting
    Intel Macs after its version 2.16, which runs on Python 3.12 at most.
    On Windows, tick *"Add python.exe to PATH"* in the installer.
 2. Download this repository: green **Code** button → **Download ZIP**, then unzip it.
-3. Open the `launchers` folder and double-click **`DEEPFIN-mac.command`** (macOS; the first time, right-click → *Open*)
-   or **`DEEPFIN-windows.bat`** (Windows). The first start installs everything it needs, about 1.5 GB and
-   5–10 minutes with an internet connection. Later starts open the app straight away.
+3. Open the `launchers` folder and double-click **`DEEPFIN-mac.command`** (macOS) or **`DEEPFIN-windows.bat`**
+   (Windows). The first start installs everything it needs, about 1.5 GB and 5–10 minutes with an internet
+   connection. Later starts open the app straight away.
+   - **macOS blocks it the first time** ("could not verify… free of malware"), because it was downloaded and is not
+     signed by a registered developer. Click **Done** (not *Move to Trash*), open System Settings → **Privacy &
+     Security**, scroll down and click **Open Anyway** next to `DEEPFIN-mac.command`, then **Open**. Or, in Terminal:
+     `xattr -dr com.apple.quarantine ~/Downloads/deepfin_clustering-main` (the unzipped folder).
+   - **Windows may show "Windows protected your PC"**: click **More info**, then **Run anyway**.
 
 Press **Make the map**: the map appears to the right of the settings, with a thumbnail of every image framed in the
 colour of its group (the slider above it sets the thumbnail size; the toolbar under it zooms and pans). If the groups don't separate well, change the settings and
