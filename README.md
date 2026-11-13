@@ -32,6 +32,8 @@ DEEPFIN comes with a point-and-click app. You choose **a folder of images**, **a
 image into a fingerprint of numbers, **a map method** (UMAP or PCA) and **a grouping method** (HDBSCAN or k-means),
 and it shows the images on a map, sorted into groups.
 
+On a Mac it needs macOS 11 (Big Sur) or newer with an Intel processor, macOS 12 or newer with an Apple chip.
+
 1. Install **Python 3.13.17** from [python.org](https://www.python.org/downloads/release/python-31317/) (3.12 also works; older versions do not, and newer versions are not supported by TensorFlow yet).
    **Intel Mac** (Apple menu → About This Mac shows an Intel processor): install
    [Python 3.12.10](https://www.python.org/downloads/release/python-31210/) instead; TensorFlow stopped supporting
